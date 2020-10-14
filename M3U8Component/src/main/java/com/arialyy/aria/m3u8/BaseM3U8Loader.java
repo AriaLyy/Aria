@@ -106,7 +106,7 @@ public abstract class BaseM3U8Loader extends AbsNormalLoader<DTaskWrapper> {
                     }
                     if (!TextUtils.isEmpty(m3U8Entity.keyPath)) {
                         //key地址
-                        stringBuffer.append(",URI=").append(m3U8Entity.keyPath);
+                        stringBuffer.append(",URI=").append("\"").append(m3U8Entity.keyPath).append("\"");
                     }
                     if (TextUtils.isEmpty(m3U8Entity.iv)) {
                         //向量
