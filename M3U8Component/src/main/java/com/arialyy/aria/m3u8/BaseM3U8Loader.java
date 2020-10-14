@@ -103,10 +103,12 @@ public abstract class BaseM3U8Loader extends AbsNormalLoader<DTaskWrapper> {
                     if (!TextUtils.isEmpty(m3U8Entity.method)) {
                         //加密方式
                         stringBuffer.append("METHOD=").append(m3U8Entity.method);
-                    } else if (!TextUtils.isEmpty(m3U8Entity.keyPath)) {
+                    }
+                    if (!TextUtils.isEmpty(m3U8Entity.keyPath)) {
                         //key地址
                         stringBuffer.append(",URI=").append(m3U8Entity.keyPath);
-                    } else if (TextUtils.isEmpty(m3U8Entity.iv)) {
+                    }
+                    if (TextUtils.isEmpty(m3U8Entity.iv)) {
                         //向量
                         stringBuffer.append(",IV=").append(m3U8Entity.iv).append("\r\n");
                     }
