@@ -242,10 +242,10 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
    */
   @Download.onTaskFail
   fun taskFail(
-    task: com.arialyy.aria.core.task.DownloadTask,
+    task: com.arialyy.aria.core.task.DownloadTask?,
     e: Exception
   ) {
-    if (task.key == mUrl) {
+    if (task?.key == mUrl) {
       Toast.makeText(this, getString(R.string.download_fail), Toast.LENGTH_SHORT)
           .show()
       binding.stateStr = getString(R.string.start)
