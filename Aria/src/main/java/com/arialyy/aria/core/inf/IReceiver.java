@@ -49,5 +49,11 @@ public interface IReceiver {
    *
    * @return {@link ReceiverType}
    */
-  @ReceiverType String getType();
+  ReceiverType getType();
+
+  /**
+   * 判断是否是fragment，如果是fragment，在activity销毁时，需要将其从receiver中移除
+   */
+  boolean isFragment();
+
 }

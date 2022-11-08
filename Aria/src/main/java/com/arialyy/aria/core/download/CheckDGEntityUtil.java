@@ -17,10 +17,13 @@ package com.arialyy.aria.core.download;
 
 import android.text.TextUtils;
 import com.arialyy.aria.core.common.RequestEnum;
+import com.arialyy.aria.core.common.controller.FeatureController;
 import com.arialyy.aria.core.inf.ICheckEntityUtil;
+import com.arialyy.aria.core.inf.IOptionConstant;
 import com.arialyy.aria.orm.DbEntity;
 import com.arialyy.aria.util.ALog;
-import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.util.CheckUtil;
+import com.arialyy.aria.util.FileUtil;
 import com.arialyy.aria.util.RecordUtil;
 import java.io.File;
 import java.util.ArrayList;
@@ -39,12 +42,17 @@ public class CheckDGEntityUtil implements ICheckEntityUtil {
    * 是否需要修改路径
    */
   private boolean needModifyPath = false;
+  private int action;
 
-  public static CheckDGEntityUtil newInstance(DGTaskWrapper wrapper) {
-    return new CheckDGEntityUtil(wrapper);
+  /**
+   * @param action {@link FeatureController#ACTION_CREATE}
+   */
+  public static CheckDGEntityUtil newInstance(DGTaskWrapper wrapper, int action) {
+    return new CheckDGEntityUtil(wrapper, action);
   }
 
-  private CheckDGEntityUtil(DGTaskWrapper wrapper) {
+  private CheckDGEntityUtil(DGTaskWrapper wrapper, int action) {
+    this.action = action;
     mWrapper = wrapper;
     mEntity = mWrapper.getEntity();
   }
@@ -55,34 +63,41 @@ public class CheckDGEntityUtil implements ICheckEntityUtil {
    * @return {@code true} 合法
    */
   private boolean checkDirPath() {
-    if (TextUtils.isEmpty(mWrapper.getDirPathTemp())) {
+    String dirPath = mWrapper.getDirPathTemp();
+
+    if (TextUtils.isEmpty(dirPath)) {
       ALog.e(TAG, "文件夹路径不能为null");
       return false;
-    } else if (!mWrapper.getDirPathTemp().startsWith("/")) {
-      ALog.e(TAG, String.format("文件夹路径【%s】错误", mWrapper.getDirPathTemp()));
+    }
+    File file = new File(dirPath);
+    if (!FileUtil.canWrite(file.getParent()) && !FileUtil.canWrite(dirPath)) {
+      ALog.e(TAG, String.format("路径【%s】不可写", dirPath));
       return false;
     }
-    File file = new File(mWrapper.getDirPathTemp());
-    if (file.isFile()) {
-      ALog.e(TAG, String.format("路径【%s】是文件，请设置文件夹路径", mWrapper.getDirPathTemp()));
+    if (!dirPath.startsWith("/")) {
+      ALog.e(TAG, String.format("文件夹路径【%s】错误", dirPath));
       return false;
     }
 
-    if ((mEntity.getDirPath() == null || !mEntity.getDirPath().equals(mWrapper.getDirPathTemp()))
-        && DbEntity.checkDataExist(DownloadGroupEntity.class, "dirPath=?",
-        mWrapper.getDirPathTemp())) {
-      ALog.e(TAG, String.format("文件夹路径【%s】已被其它任务占用，请重新设置文件夹路径", mWrapper.getDirPathTemp()));
+    if (file.isFile()) {
+      ALog.e(TAG, String.format("路径【%s】是文件，请设置文件夹路径", dirPath));
+      return false;
+    }
+
+    // 检查路径冲突
+    if (mWrapper.isNewTask() && !CheckUtil.checkDGPathConflicts(mWrapper.isIgnoreFilePathOccupy(),
+        dirPath)) {
       return false;
     }
 
     if (TextUtils.isEmpty(mEntity.getDirPath()) || !mEntity.getDirPath()
-        .equals(mWrapper.getDirPathTemp())) {
+        .equals(dirPath)) {
       if (!file.exists()) {
         file.mkdirs();
       }
       needModifyPath = true;
-      mEntity.setDirPath(mWrapper.getDirPathTemp());
-      ALog.i(TAG, String.format("文件夹路径改变，将更新文件夹路径为：%s", mWrapper.getDirPathTemp()));
+      mEntity.setDirPath(dirPath);
+      ALog.i(TAG, String.format("文件夹路径改变，将更新文件夹路径为：%s", dirPath));
     }
     return true;
   }
@@ -109,10 +124,43 @@ public class CheckDGEntityUtil implements ICheckEntityUtil {
     }
   }
 
+  /**
+   * 检查和处理组合任务的路径冲突
+   *
+   * @param isIgnoreTaskOccupy true，如果hash冲突，将删除其它任务的记录的
+   * @param groupHash 组任务hash
+   * @return false 任务不再执行，true 任务继续执行
+   */
+  private boolean checkGroupHash(boolean isIgnoreTaskOccupy, String groupHash) {
+    DownloadGroupEntity dge =
+        DbEntity.findFirst(DownloadGroupEntity.class, "groupHash=?", groupHash);
+    if (dge != null && dge.getGroupHash().equals(mEntity.getGroupHash())) {
+      mEntity.rowID = dge.rowID;
+      return true;
+    }
+
+    if (DbEntity.checkDataExist(DownloadGroupEntity.class, "groupHash=?", groupHash)) {
+      if (!isIgnoreTaskOccupy) {
+        ALog.e(TAG, String.format("下载失败，数据库中已存在相同的url的组任务，groupHash = %s", groupHash));
+        return false;
+      } else {
+        ALog.w(TAG, String.format("数据库中已存在相同的url的组任务，将删除groupHash = %s 的旧任务", groupHash));
+        RecordUtil.delGroupTaskRecordByHash(groupHash, true);
+        return true;
+      }
+    }
+    return true;
+  }
+
   @Override
   public boolean checkEntity() {
     if (mWrapper.getErrorEvent() != null) {
-      ALog.e(TAG, mWrapper.getErrorEvent().errorMsg);
+      ALog.e(TAG, String.format("任务操作失败，%s", mWrapper.getErrorEvent().errorMsg));
+      return false;
+    }
+
+    if ((action == FeatureController.ACTION_CREATE || action == FeatureController.ACTION_ADD)
+        && !checkGroupHash(mWrapper.isIgnoreTaskOccupy(), mEntity.getGroupHash())) {
       return false;
     }
 
@@ -128,14 +176,16 @@ public class CheckDGEntityUtil implements ICheckEntityUtil {
       return false;
     }
 
-    if (!mWrapper.isUnknownSize() && mEntity.getFileSize() == 0) {
+    if (action != FeatureController.ACTION_CANCEL
+        && !mWrapper.isUnknownSize()
+        && mEntity.getFileSize() == 0) {
       ALog.e(TAG, "组合任务必须设置文件文件大小，默认需要强制设置文件大小。如果无法获取到总长度，请调用#unknownSize()来标志该组合任务");
       return false;
     }
 
-    if (mWrapper.asHttp().getRequestEnum() == RequestEnum.POST) {
-      for (DTaskWrapper subTask : mWrapper.getSubTaskWrapper()) {
-        subTask.asHttp().setRequestEnum(RequestEnum.POST);
+    if (mWrapper.getOptionParams().getParam(IOptionConstant.requestEnum) == RequestEnum.POST) {
+      for (DTaskWrapper subWrapper : mWrapper.getSubTaskWrapper()) {
+        subWrapper.getOptionParams().setParams(IOptionConstant.requestEnum, RequestEnum.POST);
       }
     }
 
@@ -168,13 +218,12 @@ public class CheckDGEntityUtil implements ICheckEntityUtil {
         if (!newName.equals(entity.getFileName())) {
           String oldPath = mEntity.getDirPath() + "/" + entity.getFileName();
           String newPath = mEntity.getDirPath() + "/" + newName;
-          if (DbEntity.checkDataExist(DownloadEntity.class, "downloadPath=? or isComplete='true'",
-              newPath)) {
-            ALog.w(TAG, String.format("更新文件名失败，路径【%s】已存在或文件已下载", newPath));
+          if (DbEntity.checkDataExist(DownloadEntity.class, "downloadPath=?", newPath)) {
+            ALog.w(TAG, String.format("更新文件名失败，路径【%s】被其它任务占用", newPath));
             return;
           }
 
-          RecordUtil.modifyTaskRecord(oldPath, newPath);
+          RecordUtil.modifyTaskRecord(oldPath, newPath, mEntity.getTaskType());
           entity.setFilePath(newPath);
           entity.setFileName(newName);
         }
@@ -190,7 +239,7 @@ public class CheckDGEntityUtil implements ICheckEntityUtil {
    */
   private boolean checkUrls() {
     if (mEntity.getUrls().isEmpty()) {
-      ALog.e(TAG, "下载失败，子任务下载列表为null");
+      ALog.e(TAG, "操作失败，子任务下载列表为null");
       return false;
     }
 
@@ -235,9 +284,6 @@ public class CheckDGEntityUtil implements ICheckEntityUtil {
         mWrapper.getSubNameTemp().remove(index);
       }
     }
-
-    mEntity.setGroupHash(CommonUtil.getMd5Code(mEntity.getUrls()));
-
     return true;
   }
 

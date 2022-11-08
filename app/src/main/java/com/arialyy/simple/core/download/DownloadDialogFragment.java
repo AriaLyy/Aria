@@ -8,8 +8,8 @@ import android.widget.Toast;
 import com.arialyy.annotations.Download;
 import com.arialyy.aria.core.Aria;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.DownloadTask;
 import com.arialyy.aria.core.inf.IEntity;
+import com.arialyy.aria.core.task.DownloadTask;
 import com.arialyy.aria.util.CommonUtil;
 import com.arialyy.simple.R;
 import com.arialyy.simple.base.BaseDialog;
@@ -33,8 +33,8 @@ import com.arialyy.simple.util.AppUtil;
 
   @Override protected void init(Bundle savedInstanceState) {
     super.init(savedInstanceState);
-    Aria.download(getContext()).register();
-    mEntity = Aria.download(getContext()).getFirstDownloadEntity(DOWNLOAD_URL);
+    Aria.download(this).register();
+    mEntity = Aria.download(this).getFirstDownloadEntity(DOWNLOAD_URL);
     if (mEntity != null) {
       if (mEntity.getState() == IEntity.STATE_RUNNING) {
         getBinding().setStateStr(getString(R.string.stop));
@@ -46,7 +46,6 @@ import com.arialyy.simple.util.AppUtil;
       getBinding().setProgress((int) (mEntity.getCurrentProgress() * 100 / mEntity.getFileSize()));
     }
     mRootView.findViewById(R.id.start).setOnClickListener(this);
-    mRootView.findViewById(R.id.stop).setOnClickListener(this);
     mRootView.findViewById(R.id.cancel).setOnClickListener(this);
   }
 
@@ -56,7 +55,7 @@ import com.arialyy.simple.util.AppUtil;
 
   @Override public void onDestroy() {
     super.onDestroy();
-    Aria.download(getContext()).unRegister();
+    Aria.download(this).unRegister();
   }
 
   @Download.onPre(DOWNLOAD_URL) protected void onPre(DownloadTask task) {
@@ -103,7 +102,7 @@ import com.arialyy.simple.util.AppUtil;
     switch (view.getId()) {
       case R.id.start:
         if (!AppUtil.chekEntityValid(mEntity)) {
-          Aria.download(getContext())
+          Aria.download(this)
               .load(DOWNLOAD_URL)
               .setFilePath(Environment.getExternalStorageDirectory().getPath() + "/放置江湖.apk")
               .create();
@@ -121,7 +120,7 @@ import com.arialyy.simple.util.AppUtil;
 
       case R.id.cancel:
         if (AppUtil.chekEntityValid(mEntity)) {
-          Aria.download(getContext()).load(mEntity.getId()).cancel();
+          Aria.download(this).load(mEntity.getId()).cancel();
         }
         break;
     }

@@ -16,10 +16,10 @@
 package com.arialyy.aria.core.inf;
 
 import android.text.TextUtils;
-import androidx.annotation.CheckResult;
-import com.arialyy.aria.core.common.Suggest;
-import com.arialyy.aria.core.common.controller.NormalController;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.common.controller.BuilderController;
+import com.arialyy.aria.core.common.controller.NormalController;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
 
@@ -31,7 +31,6 @@ public abstract class AbsTarget<TARGET extends AbsTarget> {
   protected String TAG;
   private AbsEntity mEntity;
   private AbsTaskWrapper mTaskWrapper;
-  private String mTargetName;
 
   protected AbsTarget() {
     TAG = CommonUtil.getClassName(this);
@@ -44,14 +43,6 @@ public abstract class AbsTarget<TARGET extends AbsTarget> {
 
   public AbsEntity getEntity() {
     return mEntity;
-  }
-
-  public String getTargetName() {
-    return mTargetName;
-  }
-
-  public void setTargetName(String mTargetName) {
-    this.mTargetName = mTargetName;
   }
 
   /**
@@ -69,7 +60,6 @@ public abstract class AbsTarget<TARGET extends AbsTarget> {
    *
    * @param str 扩展数据
    */
-  @CheckResult(suggest = Suggest.TASK_CONTROLLER)
   public TARGET setExtendField(String str) {
     if (TextUtils.isEmpty(str)) return (TARGET) this;
     if (TextUtils.isEmpty(mEntity.getStr()) || !mEntity.getStr().equals(str)) {
@@ -84,10 +74,10 @@ public abstract class AbsTarget<TARGET extends AbsTarget> {
   /**
    * 重置状态，将任务状态设置为未开始状态
    * 注意：如果在后续方法调用链中没有调用 {@link NormalController#stop()}、{@link NormalController#cancel()}、
-   * {@link NormalController#resume()}、{@link BuilderController#create()}、{@link BuilderController#add()}
+   * {@link NormalController#resume()}、{@link BuilderController#create()}、{@link
+   * BuilderController#add()}
    * 等操作任务的方法，那么你需要调用{@link NormalController#save()}才能将修改保存到数据库
    */
-  @CheckResult(suggest = "after use #create()、#stop()、#cancel()、#resume()、#save()?")
   public TARGET resetState() {
     getTaskWrapper().getEntity().setState(IEntity.STATE_WAIT);
     getTaskWrapper().setRefreshInfo(true);

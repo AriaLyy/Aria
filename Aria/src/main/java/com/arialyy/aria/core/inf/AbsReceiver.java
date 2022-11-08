@@ -16,31 +16,119 @@
 
 package com.arialyy.aria.core.inf;
 
-import com.arialyy.aria.core.queue.DownloadGroupTaskQueue;
-import com.arialyy.aria.core.queue.DownloadTaskQueue;
-import com.arialyy.aria.core.queue.UploadTaskQueue;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import android.app.Dialog;
+import android.util.Log;
+import android.widget.PopupWindow;
+import com.arialyy.aria.core.WidgetLiftManager;
+import com.arialyy.aria.core.queue.DGroupTaskQueue;
+import com.arialyy.aria.core.queue.DTaskQueue;
+import com.arialyy.aria.core.queue.UTaskQueue;
+import com.arialyy.aria.util.CommonUtil;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  * Created by AriaL on 2017/6/27.
  * 接收器
  */
 public abstract class AbsReceiver implements IReceiver {
+  protected String TAG = getClass().getSimpleName();
+
   /**
-   * 观察者对象map
-   * key 由 {@link #getKey(IReceiver)}指定
+   * 观察者对象
    */
-  public static final Map<String, Object> OBJ_MAP = new ConcurrentHashMap<>();
+  public Object obj;
+
   /**
    * 观察者对象类的完整名称
    */
-  public String targetName;
+  private String targetName;
+
   /**
    * 当dialog、dialogFragment、popupwindow已经被用户使用了Dismiss事件或Cancel事件，需要手动移除receiver
    */
-  public boolean needRmListener = false;
+  private boolean needRmReceiver = false;
+
+  private boolean isFragment = false;
+
+  public boolean isLocalOrAnonymousClass = false;
+
+  public AbsReceiver(Object obj) {
+    this.obj = obj;
+    initParams();
+  }
+
+  private void initParams() {
+    try {
+      targetName = CommonUtil.getTargetName(obj);
+      Class clazz = obj.getClass();
+      if (CommonUtil.isLocalOrAnonymousClass(clazz)) {
+        isLocalOrAnonymousClass = true;
+        String parentName = CommonUtil.getTargetName(obj);
+        Class parentClazz = Class.forName(parentName);
+        handleFragmentOrDialogParam(parentClazz, true);
+        return;
+      }
+      handleFragmentOrDialogParam(clazz, false);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void handleFragmentOrDialogParam(Class clazz, boolean isLocalOrAnonymousClass) {
+    final WidgetLiftManager widgetLiftManager = new WidgetLiftManager();
+    if (obj instanceof Dialog) {
+      needRmReceiver = widgetLiftManager.handleDialogLift((Dialog) obj);
+      return;
+    }
+    if (obj instanceof PopupWindow) {
+      needRmReceiver = widgetLiftManager.handlePopupWindowLift((PopupWindow) obj);
+      return;
+    }
+
+    if (CommonUtil.isFragment(clazz)){
+      isFragment = true;
+    }
+
+    if (CommonUtil.isDialogFragment(clazz)) {
+      isFragment = true;
+      if (isLocalOrAnonymousClass) {
+        Log.e(TAG, String.format(
+            "%s 是匿名内部类，无法获取到dialog对象，为了防止内存泄漏，请在dismiss方法中调用Aria.download(this).unRegister();来注销事件",
+            obj.getClass().getName()
+        ));
+        return;
+      }
+      needRmReceiver = widgetLiftManager.handleDialogFragmentLift(getDialog(obj));
+    }
+  }
+
+  /**
+   * 获取DialogFragment的dialog
+   *
+   * @return 获取失败，返回null
+   */
+  private Dialog getDialog(Object obj) {
+    try {
+      Method method = obj.getClass().getMethod("getDialog");
+      return (Dialog) method.invoke(obj);
+    } catch (NoSuchMethodException e) {
+      e.printStackTrace();
+    } catch (IllegalAccessException e) {
+      e.printStackTrace();
+    } catch (InvocationTargetException e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  protected boolean isNeedRmListener() {
+    return needRmReceiver;
+  }
+
+  @Override public boolean isFragment() {
+    return isFragment;
+  }
 
   /**
    * 创建观察者对象map的key，生成规则：
@@ -69,14 +157,7 @@ public abstract class AbsReceiver implements IReceiver {
    * 移除观察者对象
    */
   private void removeObj() {
-    for (Iterator<Map.Entry<String, Object>> iter = OBJ_MAP.entrySet().iterator();
-        iter.hasNext(); ) {
-      Map.Entry<String, Object> entry = iter.next();
-      String key = entry.getKey();
-      if (key.equals(getKey())) {
-        iter.remove();
-      }
-    }
+    obj = null;
   }
 
   @Override public void destroy() {
@@ -85,7 +166,7 @@ public abstract class AbsReceiver implements IReceiver {
   }
 
   /**
-   * 移除{@link DownloadTaskQueue}、{@link DownloadGroupTaskQueue}、{@link UploadTaskQueue}中注册的观察者
+   * 移除{@link DTaskQueue}、{@link DGroupTaskQueue}、{@link UTaskQueue}中注册的观察者
    */
   protected abstract void unRegisterListener();
 }

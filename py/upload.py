@@ -3,10 +3,10 @@ import os
 from flask import Flask, request, url_for, send_from_directory
 from werkzeug import secure_filename
 
-ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif', 'rar', 'apk'])
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif', 'rar', 'apk', 'zip'])
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'd:/db/'
+app.config['UPLOAD_FOLDER'] = '/Users/aria/temp/test/'
 app.config['MAX_CONTENT_LENGTH'] = 1600 * 1024 * 1024
 
 """
@@ -49,13 +49,13 @@ def upload_file():
 
         file = request.files['file']
         print(file)
-        if file and allowed_file(file.filename):
-            print('start save')
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        #if file and allowed_file(file.filename):
+        print('start save')
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             # file_url = url_for('uploaded_file', filename=filename)
             # return html + '<br><img src=' + file_url + '>'
-            return '200'
+        return '200'
     return '405'
 
 

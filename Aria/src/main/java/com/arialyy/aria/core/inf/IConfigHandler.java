@@ -15,6 +15,8 @@
  */
 package com.arialyy.aria.core.inf;
 
+import com.arialyy.aria.core.common.AbsEntity;
+
 /**
  * Created by lyy on 2019/4/5.
  * 普通任务配置处理

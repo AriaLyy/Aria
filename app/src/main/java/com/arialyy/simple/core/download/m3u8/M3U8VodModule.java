@@ -35,10 +35,20 @@ public class M3U8VodModule extends BaseViewModule {
   //private final String defUrl = "https://www.gaoya123.cn/2019/1557993797897.m3u8";
   // 多码率地址：
   //private final String defUrl = "http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8";
-  private final String defUrl = "http://cn1.fa1244.cn/hls/20190516/6d271eaa73b2e4cb51d13831b0c1ab4c/1557976262/index.m3u8";
+  private final String defUrl = "https://5.voooe.cn/cache/youku/4e00b49a6e4f11155967c2cb3385a2ab.m3u8";
+  //private final String defUrl = "http://pp3zvsk2n.bkt.clouddn.com/20200806/sd/15967206011811803/38475fadd55e4ecea3.m3u8";
+  //private final String defUrl = "http://youku.cdn7-okzy.com/20200123/16815_fbe419ed/index.m3u8";
+
+  //private final String defUrl = "https://cn7.kankia.com/hls/20200108/e1eaec074274c64fe46a3bdb5d2ba487/1578488360/index.m3u8";
+  //private final String defUrl = "https://youku.cdn7-okzy.com/20191213/16167_c3592a02/index.m3u8";
+  //private final String defUrl = "http://qn.shytong.cn/b83137769ff6b555/11b0c9970f9a3fa0.mp4.m3u8";
+  //private final String defUrl = "https://135zyv5.xw0371.com/2018/10/29/X05c7CG3VB91gi1M/playlist.m3u8";
+  //private final String defUrl = "https://fangao.qfxmj.com/video/20191111/dbf7e2aa0c5f42a8b040442b54c13e3a/cloudv-transfer/555555556nr593o75556r165q86n82n0_eb3da35b8f4442808756a6ddc8ec1372_0_3.m3u8?wsSecret=d5fb403512d4cd427f18858086b35ce4&wsTime=1582197537";
+  //private final String defUrl = "https://v1.szjal.cn/20190819/Ql6UD1od/index.m3u8";
   private final String filePath =
       Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath()
-          + "/道士下山.ts";
+          //+ "/道士下山.ts";
+          + "/bb1.ts";
 
   private MutableLiveData<DownloadEntity> liveData = new MutableLiveData<>();
   private DownloadEntity singDownloadInfo;

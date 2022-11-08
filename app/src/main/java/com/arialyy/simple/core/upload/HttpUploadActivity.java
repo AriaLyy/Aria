@@ -20,68 +20,80 @@ import android.os.Bundle;
 import android.view.View;
 import com.arialyy.annotations.Upload;
 import com.arialyy.aria.core.Aria;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.common.HttpOption;
 import com.arialyy.aria.core.common.RequestEnum;
-import com.arialyy.aria.core.common.controller.ControllerType;
+import com.arialyy.aria.core.task.UploadTask;
 import com.arialyy.aria.core.upload.UploadEntity;
-import com.arialyy.aria.core.upload.UploadTask;
+import com.arialyy.aria.util.ALog;
 import com.arialyy.frame.util.FileUtil;
-import com.arialyy.frame.util.show.L;
 import com.arialyy.simple.R;
 import com.arialyy.simple.base.BaseActivity;
-import com.arialyy.simple.databinding.ActivityUploadBinding;
+import com.arialyy.simple.databinding.ActivitySingleBinding;
 import com.arialyy.simple.util.AppUtil;
-import com.arialyy.simple.widget.HorizontalProgressBarWithNumber;
+import com.arialyy.simple.widget.ProgressLayout;
 import java.io.File;
 
 /**
  * Created by lyy on 2017/2/9.
  */
-public class HttpUploadActivity extends BaseActivity<ActivityUploadBinding> {
+public class HttpUploadActivity extends BaseActivity<ActivitySingleBinding> {
   private static final String TAG = "HttpUploadActivity";
-  HorizontalProgressBarWithNumber mPb;
 
-  private final String FILE_PATH = "/mnt/sdcard/ggsg14.apk";
+  //private final String FILE_PATH = "/mnt/sdcard/QQMusic-import-1.2.1.zip";
+  private final String FILE_PATH = "/mnt/sdcard/update.jpg";
+  //private final String FILE_PATH =
+  //    Environment.getExternalStorageDirectory().getPath() + "/Download/QQMusic-import-1.2.1.zip";
   private UploadEntity mEntity;
 
   @Override protected int setLayoutId() {
-    return R.layout.activity_upload;
+    return R.layout.activity_single;
   }
 
   @Override protected void init(Bundle savedInstanceState) {
     setTile("D_HTTP 上传");
     super.init(savedInstanceState);
+    Aria.upload(this).getTaskList();
 
     mEntity = Aria.upload(this).getFirstUploadEntity(FILE_PATH);
-
+    if (mEntity == null) {
+      mEntity = new UploadEntity();
+      mEntity.setFilePath(FILE_PATH);
+    }
+    getBinding().pl.setInfo(mEntity);
     Aria.upload(this).register();
-    getBinding().upload.setOnClickListener(new View.OnClickListener() {
-      @Override public void onClick(View v) {
+
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
         upload();
       }
-    });
-    getBinding().stop.setOnClickListener(new View.OnClickListener() {
-      @Override public void onClick(View v) {
-        stop();
+
+      @Override public void stop(View v, AbsEntity entity) {
+        HttpUploadActivity.this.stop();
       }
-    });
-    getBinding().remove.setOnClickListener(new View.OnClickListener() {
-      @Override public void onClick(View v) {
+
+      @Override public void resume(View v, AbsEntity entity) {
+        upload();
+      }
+
+      @Override public void cancel(View v, AbsEntity entity) {
         remove();
       }
     });
-    mPb = getBinding().pb;
   }
 
   void upload() {
+    HttpOption option = new HttpOption();
+    option.setRequestType(RequestEnum.POST);
+    option.setParam("params", "bbbbbbbb");
+    option.setAttachment("file");
     Aria.upload(HttpUploadActivity.this).load(FILE_PATH)
         //.setUploadUrl("http://lib-test.xzxyun.com:8042/Api/upload?data={\"type\":\"1\",\"fileType\":\".apk\"}")
-        .setUploadUrl("http://9.9.9.205:5000/upload/")
+        .setUploadUrl("http://172.16.0.91:5000/upload/")
+        .ignoreFilePathOccupy()
         //.setTempUrl("http://192.168.1.6:8080/upload/sign_file/").setAttachment("file")
         //.addHeader("iplanetdirectorypro", "11a09102fb934ad0bc206f9c611d7933")
-        .option()
-        .setRequestType(RequestEnum.POST)
-        .setParam("params", "bbbbbbbb")
-        .controller(ControllerType.CREATE_CONTROLLER)
+        .option(option)
         .create();
   }
 
@@ -101,32 +113,29 @@ public class HttpUploadActivity extends BaseActivity<ActivityUploadBinding> {
   }
 
   @Upload.onTaskStart public void taskStart(UploadTask task) {
-    L.d(TAG, "upload create，md5：" + FileUtil.getFileMD5(new File(task.getEntity().getFilePath())));
-    getBinding().setFileSize(task.getConvertFileSize());
+    ALog.d(TAG,
+        "upload create，md5：" + FileUtil.getFileMD5(new File(task.getEntity().getFilePath())));
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Upload.onTaskStop public void taskStop(UploadTask task) {
-    L.d(TAG, "upload stop");
-    getBinding().setSpeed("");
-    getBinding().setProgress(0);
+    ALog.d(TAG, "upload stop");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Upload.onTaskCancel public void taskCancel(UploadTask task) {
-    L.d(TAG, "upload cancel");
-    getBinding().setSpeed("");
-    getBinding().setProgress(0);
+    ALog.d(TAG, "upload cancel");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Upload.onTaskRunning public void taskRunning(UploadTask task) {
-    getBinding().setSpeed(task.getConvertSpeed());
-    getBinding().setProgress(task.getPercent());
-    L.d(TAG, "P => " + task.getPercent());
+    ALog.d(TAG, "running, P = " + task.getPercent());
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Upload.onTaskComplete public void taskComplete(UploadTask task) {
-    L.d(TAG, "上传完成");
-    L.d(TAG, "上传成功服务端返回数据（如果有的话）：" + task.getEntity().getResponseStr());
-    getBinding().setSpeed("");
-    getBinding().setProgress(100);
+    ALog.d(TAG, "上传完成");
+    ALog.d(TAG, "上传成功服务端返回数据（如果有的话）：" + task.getEntity().getResponseStr());
+    getBinding().pl.setInfo(task.getEntity());
   }
 }

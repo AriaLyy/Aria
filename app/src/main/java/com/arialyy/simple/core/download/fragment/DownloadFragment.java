@@ -19,24 +19,20 @@ package com.arialyy.simple.core.download.fragment;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
-import android.widget.Button;
 import com.arialyy.annotations.Download;
 import com.arialyy.aria.core.Aria;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.inf.IEntity;
-import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.core.task.DownloadTask;
 import com.arialyy.frame.core.AbsFragment;
 import com.arialyy.simple.R;
 import com.arialyy.simple.databinding.FragmentDownloadBinding;
+import com.arialyy.simple.widget.ProgressLayout;
 
 /**
  * Created by lyy on 2017/1/4.
  */
-public class DownloadFragment extends AbsFragment<FragmentDownloadBinding>
-    implements View.OnClickListener {
-  Button mStart;
-  Button mCancel;
+public class DownloadFragment extends AbsFragment<FragmentDownloadBinding> {
   private long mTaskId = -1;
 
   private static final String DOWNLOAD_URL =
@@ -44,82 +40,58 @@ public class DownloadFragment extends AbsFragment<FragmentDownloadBinding>
   private static final String FILE_NAME = "王者军团";
 
   @Override protected void init(Bundle savedInstanceState) {
-    mStart = mRootView.findViewById(R.id.start);
-    mCancel = mRootView.findViewById(R.id.cancel);
-    mStart.setOnClickListener(this);
-    mCancel.setOnClickListener(this);
-
-    DownloadEntity entity = Aria.download(this).getFirstDownloadEntity(DOWNLOAD_URL);
-    if (entity != null) {
-      getBinding().setFileSize(CommonUtil.formatFileSize(entity.getFileSize()));
-      getBinding().setProgress(entity.getPercent());
-      if (entity.getState() == IEntity.STATE_RUNNING) {
-        getBinding().setStateStr(getString(R.string.stop));
-      } else {
-        getBinding().setStateStr(getString(R.string.resume));
-      }
-      mTaskId = entity.getId();
-    } else {
-      getBinding().setStateStr(getString(R.string.start));
-    }
-    getBinding().setUrl(DOWNLOAD_URL);
-    getBinding().setFileName(FILE_NAME);
     Aria.download(this).register();
-  }
-
-  public void onClick(View view) {
-    switch (view.getId()) {
-      case R.id.start:
-        if (mTaskId == -1) {
-          mTaskId = Aria.download(this)
-              .load(DOWNLOAD_URL)
-              .setFilePath(
-                  Environment.getExternalStorageDirectory().getPath() + String.format("%s.apk",
-                      FILE_NAME))
-              .create();
-          getBinding().setStateStr(getString(R.string.stop));
-          break;
-        }
-        if (Aria.download(this).load(mTaskId).isRunning()) {
-          Aria.download(this).load(mTaskId).stop();
-          getBinding().setStateStr(getString(R.string.resume));
-        } else {
-          Aria.download(this).load(mTaskId).resume();
-          getBinding().setStateStr(getString(R.string.stop));
-        }
-        break;
-
-      case R.id.cancel:
-        Aria.download(this).load(mTaskId).cancel();
-        getBinding().setStateStr(getString(R.string.start));
-        mTaskId = -1;
-        break;
+    DownloadEntity entity = Aria.download(this).getFirstDownloadEntity(DOWNLOAD_URL);
+    if (entity == null){
+      entity = new DownloadEntity();
+      entity.setUrl(DOWNLOAD_URL);
     }
+    getBinding().pl.setInfo(entity);
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
+        mTaskId = Aria.download(this)
+            .load(DOWNLOAD_URL)
+            .setFilePath(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    .getPath() + String.format("/%s.apk",
+                    FILE_NAME))
+            .create();
+      }
+
+      @Override public void stop(View v, AbsEntity entity) {
+        Aria.download(this)
+            .load(mTaskId)
+            .stop();
+      }
+
+      @Override public void resume(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId)
+            //.updateUrl(mUrl)
+            .resume();
+      }
+
+      @Override public void cancel(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId).cancel(false);
+        mTaskId = -1;
+      }
+    });
   }
 
   @Download.onTaskPre public void onTaskPre(DownloadTask task) {
-    getBinding().setFileSize(task.getConvertFileSize());
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Download.onTaskStop public void onTaskStop(DownloadTask task) {
-    getBinding().setSpeed("");
-    getBinding().setStateStr(getString(R.string.resume));
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Download.onTaskCancel public void onTaskCancel(DownloadTask task) {
-    getBinding().setProgress(0);
-    getBinding().setSpeed("");
-    getBinding().setStateStr(getString(R.string.cancel));
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Download.onTaskRunning public void onTaskRunning(DownloadTask task) {
     long len = task.getFileSize();
-    if (len == 0) {
-      getBinding().setProgress(0);
-    } else {
-      getBinding().setProgress(task.getPercent());
-    }
-    getBinding().setSpeed(task.getConvertSpeed());
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @Override protected void onDelayLoad() {

@@ -30,7 +30,7 @@ public class CommandManager {
     EventMsgUtil.getDefault().register(this);
   }
 
-  public static CommandManager init() {
+  public static void init() {
     if (instance == null) {
       synchronized (CommandManager.class) {
         if (instance == null) {
@@ -38,7 +38,6 @@ public class CommandManager {
         }
       }
     }
-    return instance;
   }
 
   @Event
@@ -51,9 +50,6 @@ public class CommandManager {
 
   @Event
   public void start(StartCmd cmd) {
-    if (CommonUtil.isFastDoubleClick()) {
-      return;
-    }
     cmd.executeCmd();
   }
 

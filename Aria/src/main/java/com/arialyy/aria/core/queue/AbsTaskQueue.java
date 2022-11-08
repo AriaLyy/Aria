@@ -16,10 +16,9 @@
 
 package com.arialyy.aria.core.queue;
 
-import com.arialyy.aria.core.download.DownloadGroupTask;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.inf.AbsTask;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
+import android.text.TextUtils;
+import android.util.Log;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.inf.IEntity;
 import com.arialyy.aria.core.inf.TaskSchedulerType;
 import com.arialyy.aria.core.manager.TaskWrapperManager;
@@ -29,8 +28,15 @@ import com.arialyy.aria.core.queue.pool.BaseExecutePool;
 import com.arialyy.aria.core.queue.pool.DGLoadSharePool;
 import com.arialyy.aria.core.queue.pool.DLoadSharePool;
 import com.arialyy.aria.core.queue.pool.UploadSharePool;
-import com.arialyy.aria.core.upload.UploadTask;
+import com.arialyy.aria.core.task.AbsTask;
+import com.arialyy.aria.core.task.DownloadGroupTask;
+import com.arialyy.aria.core.task.DownloadTask;
+import com.arialyy.aria.core.task.UploadTask;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 import com.arialyy.aria.util.ALog;
+import com.arialyy.aria.util.CommonUtil;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by lyy on 2017/2/23. 任务队列
@@ -41,7 +47,7 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
   final int TYPE_DG_QUEUE = 2;
   final int TYPE_U_QUEUE = 3;
 
-  private final String TAG = "AbsTaskQueue";
+  private final String TAG = CommonUtil.getClassName(this);
   BaseCachePool<TASK> mCachePool;
   BaseExecutePool<TASK> mExecutePool;
 
@@ -64,7 +70,33 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
 
   abstract int getQueueType();
 
+  /**
+   * 获取执行中的任务
+   *
+   * @return 没有执行中的任务，返回null
+   */
+  public <T extends AbsEntity> List<T> getRunningTask(Class<T> type) {
+    List<TASK> exeTask = mExecutePool.getAllTask();
+    List<TASK> cacheTask = mCachePool.getAllTask();
+    List<T> entities = new ArrayList<>();
+    if (exeTask != null && !exeTask.isEmpty()) {
+      for (TASK task : exeTask) {
+        entities.add((T) task.getTaskWrapper().getEntity());
+      }
+    }
+    if (cacheTask != null && !cacheTask.isEmpty()) {
+      for (TASK task : cacheTask) {
+        entities.add((T) task.getTaskWrapper().getEntity());
+      }
+    }
+    return entities.isEmpty() ? null : entities;
+  }
+
   @Override public boolean taskIsRunning(String key) {
+    if (TextUtils.isEmpty(key)) {
+      ALog.w(TAG, "key为空，无法确认任务是否执行");
+      return false;
+    }
     TASK task = mExecutePool.getTask(key);
     if (task == null && ThreadTaskManager.getInstance().taskIsRunning(key)) {
       ThreadTaskManager.getInstance().removeTaskThread(key);
@@ -82,6 +114,10 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
       ALog.w(TAG, "resume task fail, task is null");
       return;
     }
+    if (mExecutePool.taskExits(task.getKey())) {
+      ALog.w(TAG, String.format("task【%s】running", task.getKey()));
+      return;
+    }
     if (mExecutePool.size() >= getMaxTaskNum()) {
       task.getTaskWrapper().getEntity().setState(IEntity.STATE_WAIT);
       mCachePool.putTaskToFirst(task);
@@ -95,8 +131,7 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
    * 停止所有任务
    */
   @Override public void stopAllTask() {
-    for (String key : mExecutePool.getAllTask().keySet()) {
-      TASK task = mExecutePool.getAllTask().get(key);
+    for (TASK task : mExecutePool.getAllTask()) {
       if (task != null) {
         int state = task.getState();
         if (task.isRunning() || (state != IEntity.STATE_COMPLETE
@@ -106,8 +141,13 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
       }
     }
 
-    for (String key : mCachePool.getAllTask().keySet()) {
-      TASK task = mCachePool.getAllTask().get(key);
+    //for (String key : mCachePool.getAllTask().keySet()) {
+    //  TASK task = mCachePool.getAllTask().get(key);
+    //  if (task != null) {
+    //    task.stop(TaskSchedulerType.TYPE_STOP_NOT_NEXT);
+    //  }
+    //}
+    for (TASK task : mCachePool.getAllTask()) {
       if (task != null) {
         task.stop(TaskSchedulerType.TYPE_STOP_NOT_NEXT);
       }
@@ -153,10 +193,10 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
     return mExecutePool.size();
   }
 
-  @Override public void setMaxTaskNum(int downloadNum) {
+  @Override public void setMaxTaskNum(int maxNum) {
     int oldMaxSize = getOldMaxNum();
-    int diff = downloadNum - oldMaxSize;
-    if (oldMaxSize == downloadNum) {
+    int diff = maxNum - oldMaxSize;
+    if (oldMaxSize == maxNum) {
       ALog.w(TAG, "设置的下载任务数和配置文件的下载任务数一直，跳过");
       return;
     }
@@ -169,7 +209,7 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
         }
       }
     }
-    mExecutePool.setMaxNum(downloadNum);
+    mExecutePool.setMaxNum(maxNum);
     if (diff >= 1) {
       for (int i = 0; i < diff; i++) {
         TASK nextTask = getNextTask();
@@ -194,6 +234,7 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
     if (task == null) {
       task = mCachePool.getTask(key);
     }
+    ALog.i(TAG, "获取任务，key：" + key);
     return task;
   }
 
@@ -213,6 +254,10 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
   }
 
   @Override public void startTask(TASK task) {
+    startTask(task, TaskSchedulerType.TYPE_DEFAULT);
+  }
+
+  @Override public void startTask(TASK task, int action) {
     if (task == null) {
       ALog.w(TAG, "create fail, task is null");
     }
@@ -220,10 +265,11 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
       ALog.w(TAG, String.format("任务【%s】执行中", task.getKey()));
       return;
     }
+    ALog.i(TAG, "添加任务，key：" + task.getKey());
     mCachePool.removeTask(task);
     mExecutePool.putTask(task);
     task.getTaskWrapper().getEntity().setFailNum(0);
-    task.start();
+    task.start(action);
   }
 
   @Override public void stopTask(TASK task) {
@@ -303,7 +349,7 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
         task.start();
         break;
       case IEntity.STATE_CANCEL:
-        ALog.e(TAG, String.format("任务【%s】重试失败，原因：任务没已删除", task.getTaskName()));
+        ALog.e(TAG, String.format("任务【%s】重试失败，原因：任务已删除", task.getTaskName()));
         break;
       case IEntity.STATE_COMPLETE:
         ALog.e(TAG, String.format("任务【%s】重试失败，原因：已完成", task.getTaskName()));
@@ -312,7 +358,11 @@ public abstract class AbsTaskQueue<TASK extends AbsTask, TASK_WRAPPER extends Ab
   }
 
   @Override public void cancelTask(TASK task) {
-    task.cancel();
+    cancelTask(task, TaskSchedulerType.TYPE_DEFAULT);
+  }
+
+  @Override public void cancelTask(TASK task, int action) {
+    task.cancel(action);
   }
 
   @Override public TASK getNextTask() {

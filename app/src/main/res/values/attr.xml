@@ -16,6 +16,6 @@
 
   <declare-styleable name="SvgTextView">
     <attr format="reference" name="svg_text_view_icon"/>
-    <attr name="text"/>
+    <attr format="reference" name="text"/>
   </declare-styleable>
 </resources>

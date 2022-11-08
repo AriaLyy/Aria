@@ -1,291 +1,172 @@
 # Aria
-![图标](https://github.com/AriaLyy/DownloadUtil/blob/master/app/src/main/res/mipmap-hdpi/ic_launcher.png)</br>
+![图标](https://github.com/AriaLyy/DownloadUtil/blob/master/img/ic_launcher.png)</br>
+## [ENGLISH DOC](https://github.com/AriaLyy/Aria/blob/master/ENGLISH_README.md)</br>
+## [中文文档](https://aria.laoyuyu.me/aria_doc)
+The Aria project originated from the need for file download management encountered in work. At that time, the pain of being downloaded was unhappy. Since then, a simple and easy-to-use, stable and efficient download framework has emerged. Aria has experienced 1.0 to 3.0 development. , It is getting closer and closer to the goal set at the beginning.
 
-## [中文文档](https://github.com/AriaLyy/Aria/blob/master/CHINESE_README.md)
-
-
-Aria project is from the moment taht the work encountered in a file download management needs adn i was tortured at the time of the pain.</br>
-Since then i have a idea which is to program a simple and easy to use,stable and efficient download framework. 
-Aria experienced 1.0 to 3.0 development, be more and more close to the original set by the target.
-
-Aria has the following characteristics：
- + simple and convenient
-   - can be used in Activity, Service, Fragment, Dialog, popupWindow, Notification and other components
-   - support the task of automatic scheduling, the user does not need to care about the state of the task switch logic
-   - [Through the Aria event, it is easy to get the download status of the current download task](#status)
-   - [a code plus can get the current download speed](#interface)
-   - [a code can be dynamically set the maximum number of downloads](#parameters)
-   - [code to achieve speed limit](#interface)
-   - [It is easy to modify the number of download threads by modifying the configuration file](https://github.com/AriaLyy/Aria/blob/master/app/src/main/assets/aria_config.xml)
-   - [priority to download a task](#interface)
-   
+Aria has the following characteristics:
+ + Simple and convenient
+   - Can be used in Activity, Service, Fragment, Dialog, popupWindow, Notification and other components
+   - Support HTTP\FTP resumable download, multi-task automatic scheduling
+   - Support multi-file package download, multi-file sharing the same progress (eg: video + cover + subtitles)
+   - Support downloading FTP folder
+   - Support HTTP form upload
+   - Support file FTP resumable upload
+   - Support FTPS resumable upload, [see](https://aria.laoyuyu.me/aria_doc/api/ftp_params.html#%E4%BA%8C%E3%80%81ftps)
+   - Support SFTP resumable upload, [sftp download](https://aria.laoyuyu.me/aria_doc/download/sftp_normal.html), [sftp upload](https://aria.laoyuyu.me/aria_doc/upload /sftp_normal.html)
  + Support https address download
    - It is easy to set the CA certificate information in the configuration file
- + Support 300,301,302 redirect download link download
- + Support upload operation
+ + Support [Multi-threaded download in blocks](https://aria.laoyuyu.me/aria_doc/start/config.html), which can more effectively play the machine IO performance
+ + Support 300, 301, 302 redirect download link download
+ + Support file download of m3u8 and hls protocol [m3u8 download](https://aria.laoyuyu.me/aria_doc/download/m3u8.html)
+ + Support m3u8 download support, [click to view details](https://aria.laoyuyu.me/aria_doc/download/m3u8_vod.html)
+ + The download support file length increases dynamically, and the file download initialization will no longer occupy too much memory space, see [Dynamic Length Configuration](https://aria.laoyuyu.me/aria_doc/start/config.html#%E4% B8%8B%E8%BD%BD%E5%8A%A8%E6%80%81%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
 
-How do we to use Aria?
-* [download](#Using)
-* [upload](#Upload) s
+[How to use Aria?] (#use)
 
-If you feel that Aria is helpful to you, your star and issues will be the greatest support for me.`^_^`
+If you think Aria is helpful to you, your star and issues will be my greatest support. Of course, you are also very welcome to PR, [PR Method](https://www.zhihu.com/question/21682976/answer /79489643)`^_^`
 
-## Download
-[![Download](https://api.bintray.com/packages/arialyy/maven/AriaApi/images/download.svg)](https://bintray.com/arialyy/maven/AriaApi/_latestVersion)
-[![Download](https://api.bintray.com/packages/arialyy/maven/AriaCompiler/images/download.svg)](https://bintray.com/arialyy/maven/AriaCompiler/_latestVersion)
+## Example
+* Multitask download
+
+![Multitask download](https://github.com/AriaLyy/DownloadUtil/blob/master/img/download_img.gif)
+
+* Speed limit
+
+![网速下载限制](https://github.com/AriaLyy/DownloadUtil/blob/master/img/max_speed.gif)
+
+* Multi-file package download
+
+<img src="https://github.com/AriaLyy/DownloadUtil/blob/master/img/group_task.gif" width="360" height="640"/>
+
+* m3u8 download
+
+![m3u8点播文件边下边看](https://github.com/AriaLyy/Aria/blob/master/img/m3u8VodDownload.gif)
+
+## Lib
+[![license](http://img.shields.io/badge/license-Apache2.0-brightgreen.svg?style=flat)](https://github.com/AriaLyy/Aria/blob/master/LICENSE)
+[![Core](https://img.shields.io/badge/Core-3.8.10-blue)](https://github.com/AriaLyy/Aria)
+[![Compiler](https://img.shields.io/badge/Compiler-3.8.10-blue)](https://github.com/AriaLyy/Aria)
+[![FtpComponent](https://img.shields.io/badge/FtpComponent-3.8.10-orange)](https://github.com/AriaLyy/Aria)
+[![FtpComponent](https://img.shields.io/badge/SFtpComponent-3.8.10-orange)](https://github.com/AriaLyy/Aria)
+[![M3U8Component](https://img.shields.io/badge/M3U8Component-3.8.10-orange)](https://github.com/AriaLyy/Aria)
+
+
 ```java
-compile 'com.arialyy.aria:aria-core:3.2.0'
-annotationProcessor 'com.arialyy.aria:aria-compiler:3.2.0'
+implementation 'com.arialyy.aria:core:3.8.10'
+annotationProcessor 'com.arialyy.aria:compiler:3.8.10'
+implementation 'com.arialyy.aria:ftpComponent:3.8.10' # If you need to use ftp, please add this component
+implementation 'com.arialyy.aria:sftpComponent:3.8.10' # If you need to use sftp, please add this component
+implementation 'com.arialyy.aria:m3u8Component:3.8.10' # If you need to use the m3u8 download function, please add this component
 ```
 
-## For example
-![Multi-task download](https://github.com/AriaLyy/DownloadUtil/blob/master/img/download_img.gif)
-![download speed limit](https://github.com/AriaLyy/DownloadUtil/blob/master/img/max_speed.gif)
+If you are using Kotlin, please use the official method provided by Kotlin to configure apt, [kotlin kapt official configuration portal](https://www.kotlincn.net/docs/reference/kapt.html)
 
-## performance
-![Performance display](https://github.com/AriaLyy/DownloadUtil/blob/master/img/performance.png)
+__⚠️Note: When the version below 3.5.4 is upgraded, the [configuration file] needs to be updated(https://aria.laoyuyu.me/aria_doc/start/config.html)！！__
+
+__⚠️Note: Version 3.8 and above have been adapted to AndroidX and support libraries can be used
 
 ***
-## Using
-Since Aria involves the operation of files and networks, you need to add the following permissions to the manifest file.
+## Use
+Because Aria involves file and network operations, you need to add the following permissions to the manifest file. If you want to use Aria in a system above 6.0, you need to dynamically apply for file system read and write permissions to the Android system, [How to use Android system permissions](https://developer.android.com/training/permissions/index.html?hl=zh-cn)
 ```xml
 <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/>
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 ```
 
-## Use Aria to download
-* Add a task (do not download), when other download tasks are completed, will automatically download the waiting task
+## Use Aria
+### Basic use
+The example is a single-task download, only a very simple code is needed to realize the download function.
+* Create task
+  ```java
+  long taskId = Aria.download(this)
+      .load(DOWNLOAD_URL)     //Read download address
+      .setFilePath(DOWNLOAD_PATH) //Set the full path where the file is saved
+      .create();   //Create and start download
+  ```
+* Stop\Resume task
   ```java
   Aria.download(this)
-      .load(DOWNLOAD_URL)
-      .setDownloadPath(DOWNLOAD_PATH)	//file save path
-      .add();
+      .load(taskId)     //task id
+      .stop();       // stop task
+      //.resume();    // resume task
+
   ```
 
-* download
-
-  ```java
-  Aria.download(this)
-      .load(DOWNLOAD_URL)     //load download url
-      .setDownloadPath(DOWNLOAD_PATH)    //file save path
-      .start();   //start download
-  ```
-* Pause
-
-  ```java
-  Aria.download(this).load(DOWNLOAD_URL).pause();
-  ```
-* Resume download
-
-  ```java
-  Aria.download(this).load(DOWNLOAD_URL).resume();
-  ```
-* Cancel download
-
-  ```java
-  Aria.download(this).load(DOWNLOAD_URL).cancel();
-  ```
-
-### status
-If you want to read the download progress or download the information, then you need to create an event class and register the event class into the Aria manager in the onResume (Activity, Fragment) or constructor (Dialog, PopupWindow).
+### Obtaining task status
+Based on the consideration of decoupling, the download function of Aria is separated from the state acquisition, and the state acquisition will not be integrated into the chain code, but Aria provides another simpler and more flexible solution.
+Through annotations, you can easily get all the status of the task.
 
 1. Register the object to Aria
-
- `Aria.download(this).register();` or `Aria.upload(this).register();`
- ```java
- @Override
- protected void onCreate(Bundle savedInstanceState) {
+```java
+protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     Aria.download(this).register();
-  }
- ```
-
-2. Use`@Download` or `@Upload` to annotate your function<br>
-  **note：**
-   - Annotation is done by using `Apt`, so you do not need to worry that this will affect your machine's performance
-   - The annotated method**can not be modified by private**
-   - The annotated method**can have only one argument, and the parameter type must be either`DownloadTask` or `UploadTask`**
-   - Method name can be any string
-
-3. In addition to using annotation methods in widget (Activity, Fragment, Dialog, Popupwindow), you can also use annotation functions in components such as Service, Notification, and so on.
-
-  ```java
-  @Download.onPre(DOWNLOAD_URL)
-  protected void onPre(DownloadTask task) {}
-
-  @Download.onTaskStart
-  void taskStart(DownloadTask task) {}
-
-  @Download.onTaskRunning
-  protected void running(DownloadTask task) {}
-
-  @Download.onTaskResume
-  void taskResume(DownloadTask task) {}
-
-  @Download.onTaskStop
-  void taskStop(DownloadTask task) {}
-
-  @Download.onTaskCancel
-  void taskCancel(DownloadTask task) {}
-
-  @Download.onTaskFail
-  void taskFail(DownloadTask task) {}
-
-  @Download.onTaskComplete
-  void taskComplete(DownloadTask task) {}
-
-  @Download.onNoSupportBreakPoint
-  public void onNoSupportBreakPoint(DownloadTask task) {}
-
-  ```
-4. If you want to set up a listener for a single task, or for some specific task.<br>
- **Adding a download address for a task in an annotation means that only the task triggers the annotated method.**
-
- ```java
- @Download.onTaskRunning({
-      "https://test.xx.apk",
-      "http://test.xx2.apk"
-  }) void taskRunning(DownloadTask task) {
-    mAdapter.setProgress(task.getDownloadEntity());
-  }
- ```
-In the above example，only the download address is`https://test.xx.apk` and `http://test.xx2.apk`will trigger the`taskRunning(DownloadTask task)`method。
-
-### parameters
-#### [Configuration file setting parameters](https://github.com/AriaLyy/Aria/blob/master/app/src/main/assets/aria_config.xml)
-#### Set the parameters in the code
-In addition to the file mode to modify the Aria parameter, the same, you can also modify the code in the Aria parameters</br>
-Get the configuration file directly through`Aria.get(this).getDownloadConfig()`or`Aria.get(this).getUploadConfig()`</br>
-and then modify the parameters：
-```java
-// 修改最大下载数，调用完成后，立即生效
-// 如当前下载任务数是4，修改完成后，当前任务数会被Aria自动调度任务数
-Aria.get(this).getDownloadConfig().setMaxTaskNum(3);
-```
-
-### interface
-* Stop all tasks
-
- ```java
- Aria.download(this).stopAllTask();
- ```
-
-* Restore all stopped tasks
-
- ```java
-Aria.download(this).resumeAllTask();
- ```
-
-* Delete all tasks
-
- ```java
- Aria.download(this).removeAllTask();
- ```
-
-* Maximum download speed limit
- ```java
- //单位为 kb
- Aria.download(this).setMaxSpeed(speed);
- ```
-
-* Get download speed for current tasks<br>
-Speed parameters a bit special，need to [download the event support](#status)
-``` java
-@Override public void onTaskRunning(DownloadTask task) {
-  //If you turn on the speed unit conversion configuration, you can get the download speed with units in the following ways, such as: 1 mb/s
-  String convertSpeed = task.getConvertSpeed();
-  //If you have your own unit format, you can get the original byte length by the following method
-  long speed = task.getSpeed();
 }
 ```
 
-* Get the downloaded file size, the current progress percentage</br>
-Likewise, you can also get the downloaded file size in the DownloadTask object
-```
-@Override public void onTaskRunning(DownloadTask task) {
-  //Get the file size
-  long fileSize = task.getFileSize();
-  //Get the file size after conversion
-  String fileSize1 = task.getConvertFileSize();
-  //The current percentage of progress
-  int percent = task.getPercent();
+2. Obtain task execution status through annotations
+ **Note: **
+  - Annotation back is implemented using Apt, so you don’t need to worry about this affecting the performance of your machine
+  - Annotated methods **cannot be modified by private**
+  - The annotated method ** can only have one parameter, and the parameter type must be `DownloadTask` or `UploadTask` or `DownloadGroupTask`**
+  - Method name can be any string
+
+```java
+//Process the status of the task execution here, such as the refresh of the progress bar
+@Download.onTaskRunning protected void running(DownloadTask task) {
+	if(task.getKey().eques(url)){
+		....
+		You can judge whether it is the callback of the specified task by url
+	}
+	int p = task.getPercent();	//Task progress percentage
+    String speed = task.getConvertSpeed();	//Download speed after unit conversion, unit conversion needs to be opened in the configuration file
+   	String speed1 = task.getSpeed(); //Original byte length speed
+}
+
+@Download.onTaskComplete void taskComplete(DownloadTask task) {
+	//Process the status of task completion here
 }
 ```
 
-* Set the high priority task<br>
- If you want to give priority to download a task, you can
-``` java
-Aria.download(this).load(DOWNLOAD_URL).setDownloadPath(PATH).setHighestPriority();
-```
+### [Document address](https://aria.laoyuyu.me/aria_doc/)
 
-* Set the extension field<br>
- Sometimes, you may want to store some of your own data when you download it</br>
-**TIP**: If you have more data, or the data is more complex, you can first convert the data to JSON, and then save it to Aria's download entity
-```java
-Aria.download(this).load(DOWNLOAD_URL).setExtendField(str)
-```
 
-## Upload
+### Version Log
+ + v_3.8.10 (2020/6/26)
+    - fix bug https://github.com/AriaLyy/Aria/issues/703
+    - fix bug https://github.com/AriaLyy/Aria/issues/702
+    - fix bug https://github.com/AriaLyy/Aria/issues/695
 
- * Add a task (add only, do not upload)
+[More Version Log](https://github.com/AriaLyy/Aria/blob/master/DEV_LOG.md)
 
- ```java
- Aria.upload(this)
-     .load(filePath)     //file path
-     .setUploadUrl(uploadUrl)  // upload the path
-     .setAttachment(fileKey)   //The server reads the file's key
-     .add();
- ```
-
- * Upload
-
- ```java
- Aria.upload(this)
-     .load(filePath)     //file path
-     .setUploadUrl(uploadUrl)  //upload the path
-     .setAttachment(fileKey)   //The server reads the file's key
-     .start();
- ```
- * cancel upload
-
- ```java
- Aria.upload(this).load(filePath).cancel();
- ```
-
-## Confused configuration
+## Confusion configuration
 ```
 -dontwarn com.arialyy.aria.**
 -keep class com.arialyy.aria.**{*;}
 -keep class **$$DownloadListenerProxy{ *; }
 -keep class **$$UploadListenerProxy{ *; }
+-keep class **$$DownloadGroupListenerProxy{ *; }
+-keep class **$$DGSubListenerProxy{ *; }
 -keepclasseswithmembernames class * {
     @Download.* <methods>;
     @Upload.* <methods>;
+    @DownloadGroup.* <methods>;
 }
 
 ```
 
-## others
- Have any questions that can give me a message in the[issues](https://github.com/AriaLyy/Aria/issues)。
+## Other
+ If you have any questions, you can leave me a feedback at [issues](https://github.com/AriaLyy/Aria/issues). </br>
+ Before submitting an issue, I hope you have checked [wiki](https://aria.laoyuyu.me/aria_doc/) or searched [issues](https://github.com/AriaLyy/Aria/issues). </br>
+
+## Donate
+ https://paypal.me/arialyy
 
 ***
-
-## 后续版本开发规划
-* ~~http、scoket断点上传~~
-* ~~实现上传队列调度功能~~
-
-
-## Development log
-  + v_3.1.9 Repair the stopAll queue without task when the problem of collapse, increase the function for a single task monitor
-  + v_3.1.7 repair some files can not download the bug, increase the apt annotation method, the incident is more simple
-  + v_3.1.6 When the task is canceled ontaskCancel callback twice
-  + v_3.1.5 Optimize the code structure, increase the priority download task function.
-  + v_3.1.4 Repair the fast switching, pause, and restore functions, the probability of re-download problems, add onPre () callback, onPre () used to request the interface before the implementation of interface UI update operation.
-  + v_3.1.0 Add the Aria configuration file to optimize the code
-  + v_3.0.3 Repair the pause after deleting the task, flashing the problem, add the api to delete the record
-  + v_3.0.2 supports 30x redirect link download
-  + v_3.0.0 add upload task support to fix some bugs that have been discovered
 
 License
 -------

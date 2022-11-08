@@ -19,34 +19,23 @@ import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Application;
-import android.app.Dialog;
 import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.widget.PopupWindow;
-import androidx.fragment.app.DialogFragment;
-import androidx.fragment.app.Fragment;
+import android.util.Log;
 import com.arialyy.aria.core.command.CommandManager;
 import com.arialyy.aria.core.common.QueueMod;
-import com.arialyy.aria.core.common.RecordHandler;
 import com.arialyy.aria.core.config.AppConfig;
-import com.arialyy.aria.core.config.Configuration;
 import com.arialyy.aria.core.config.DGroupConfig;
 import com.arialyy.aria.core.config.DownloadConfig;
 import com.arialyy.aria.core.config.UploadConfig;
-import com.arialyy.aria.core.config.XMLReader;
 import com.arialyy.aria.core.download.DownloadEntity;
 import com.arialyy.aria.core.download.DownloadGroupEntity;
 import com.arialyy.aria.core.download.DownloadReceiver;
 import com.arialyy.aria.core.inf.AbsReceiver;
 import com.arialyy.aria.core.inf.IReceiver;
 import com.arialyy.aria.core.inf.ReceiverType;
+import com.arialyy.aria.core.loader.IRecordHandler;
 import com.arialyy.aria.core.upload.UploadEntity;
 import com.arialyy.aria.core.upload.UploadReceiver;
 import com.arialyy.aria.orm.DbEntity;
@@ -54,54 +43,34 @@ import com.arialyy.aria.orm.DelegateWrapper;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.AriaCrashHandler;
 import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.util.DeleteURecord;
 import com.arialyy.aria.util.RecordUtil;
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
-import org.xml.sax.SAXException;
 
 /**
- * Created by lyy on 2016/12/1. https://github.com/AriaLyy/Aria Aria管理器，任务操作在这里执行
+ * Created by lyy on 2016/12/1. https://github.com/AriaLyy/Aria
+ * Aria管理器，任务操作在这里执行
  */
 @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH) public class AriaManager {
   private static final String TAG = "AriaManager";
   private static final Object LOCK = new Object();
-  public static final String DOWNLOAD_TEMP_DIR = "/Aria/temp/download/";
-  public static final String UPLOAD_TEMP_DIR = "/Aria/temp/upload/";
-  /**
-   * 是否已经联网，true 已经联网
-   */
-  private static boolean isConnectedNet = true;
 
   @SuppressLint("StaticFieldLeak") private static volatile AriaManager INSTANCE = null;
   private Map<String, AbsReceiver> mReceivers = new ConcurrentHashMap<>();
-  /**
-   * activity 和其Dialog、Fragment的映射表
-   */
-  private Map<String, List<String>> mSubClass = new ConcurrentHashMap<>();
   private static Context APP;
-  private DownloadConfig mDConfig;
-  private UploadConfig mUConfig;
-  private AppConfig mAConfig;
-  private DGroupConfig mDGConfig;
-  private Handler mAriaHandler;
   private DelegateWrapper mDbWrapper;
+  private AriaConfig mConfig;
 
   private AriaManager(Context context) {
     APP = context.getApplicationContext();
   }
 
   public static AriaManager getInstance() {
-    if (INSTANCE == null) {
-      throw new NullPointerException("请使用AriaManager.init(context)初始化管理器");
-    }
     return INSTANCE;
   }
 
@@ -118,54 +87,14 @@ import org.xml.sax.SAXException;
   }
 
   private void initData() {
+    mConfig = AriaConfig.init(APP);
     initDb(APP);
     regAppLifeCallback(APP);
-    initConfig();
     initAria();
-    amendTaskState();
-    regNetCallBack(APP);
   }
 
   public Context getAPP() {
     return APP;
-  }
-
-  /**
-   * 注册网络监听，只有配置了检查网络{@link AppConfig#isNetCheck()}才会注册事件
-   */
-  private void regNetCallBack(Context context) {
-    if (!getAppConfig().isNetCheck()) {
-      return;
-    }
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-      return;
-    }
-    ConnectivityManager cm =
-        (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-    if (cm == null) {
-      return;
-    }
-
-    NetworkRequest.Builder builder = new NetworkRequest.Builder();
-    NetworkRequest request = builder.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-        .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
-        .build();
-
-    cm.registerNetworkCallback(request, new ConnectivityManager.NetworkCallback() {
-
-      @Override public void onLost(Network network) {
-        super.onLost(network);
-        isConnectedNet = false;
-        ALog.d(TAG, "onLost");
-      }
-
-      @Override public void onAvailable(Network network) {
-        super.onAvailable(network);
-        ALog.d(TAG, "onAvailable");
-        isConnectedNet = true;
-      }
-    });
   }
 
   /**
@@ -183,13 +112,15 @@ import org.xml.sax.SAXException;
       }
     }
     mDbWrapper = DelegateWrapper.init(context.getApplicationContext());
+    amendTaskState();
   }
 
   private void initAria() {
-    if (mAConfig.getUseAriaCrashHandler()) {
+    AppConfig appConfig = mConfig.getAConfig();
+    if (appConfig.getUseAriaCrashHandler()) {
       Thread.setDefaultUncaughtExceptionHandler(new AriaCrashHandler());
     }
-    mAConfig.setLogLevel(mAConfig.getLogLevel());
+    appConfig.setLogLevel(appConfig.getLogLevel());
     CommandManager.init();
   }
 
@@ -210,17 +141,6 @@ import org.xml.sax.SAXException;
     }
   }
 
-  public synchronized Handler getAriaHandler() {
-    if (mAriaHandler == null) {
-      mAriaHandler = new Handler(Looper.getMainLooper());
-    }
-    return mAriaHandler;
-  }
-
-  public boolean isConnectedNet() {
-    return isConnectedNet;
-  }
-
   public Map<String, AbsReceiver> getReceiver() {
     return mReceivers;
   }
@@ -237,7 +157,7 @@ import org.xml.sax.SAXException;
    * @deprecated 后续版本会删除该api
    */
   @Deprecated public AriaManager setUploadQueueMod(QueueMod mod) {
-    mUConfig.setQueueMod(mod.tag);
+    mConfig.getUConfig().setQueueMod(mod.tag);
     return this;
   }
 
@@ -253,7 +173,7 @@ import org.xml.sax.SAXException;
    * @deprecated 后续版本会删除该api
    */
   @Deprecated public AriaManager setDownloadQueueMod(QueueMod mod) {
-    mDConfig.setQueueMod(mod.tag);
+    mConfig.getDConfig().setQueueMod(mod.tag);
     return this;
   }
 
@@ -267,7 +187,7 @@ import org.xml.sax.SAXException;
    * </pre>
    */
   public DownloadConfig getDownloadConfig() {
-    return mDConfig;
+    return mConfig.getDConfig();
   }
 
   /**
@@ -280,14 +200,14 @@ import org.xml.sax.SAXException;
    * </pre>
    */
   public UploadConfig getUploadConfig() {
-    return mUConfig;
+    return mConfig.getUConfig();
   }
 
   /**
    * 获取APP配置
    */
   public AppConfig getAppConfig() {
-    return mAConfig;
+    return mConfig.getAConfig();
   }
 
   /**
@@ -300,13 +220,14 @@ import org.xml.sax.SAXException;
    * </pre>
    */
   public DGroupConfig getDGroupConfig() {
-    return mDGConfig;
+    return mConfig.getDGConfig();
   }
 
   /**
    * 处理下载操作
    */
   DownloadReceiver download(Object obj) {
+
     IReceiver receiver = mReceivers.get(getKey(ReceiverType.DOWNLOAD, obj));
     if (receiver == null) {
       receiver = putReceiver(ReceiverType.DOWNLOAD, obj);
@@ -335,49 +256,24 @@ import org.xml.sax.SAXException;
   public void delRecord(int type, String key, boolean removeFile) {
     switch (type) {
       case 1: // 删除普通任务记录
-        RecordUtil.delTaskRecord(key, RecordHandler.TYPE_DOWNLOAD, removeFile, true);
+        RecordUtil.delTaskRecord(key, IRecordHandler.TYPE_DOWNLOAD, removeFile, true);
         break;
       case 2:
-        RecordUtil.delGroupTaskRecord(key, removeFile);
+        RecordUtil.delGroupTaskRecordByHash(key, removeFile);
         break;
       case 3:
-        RecordUtil.delTaskRecord(key, RecordHandler.TYPE_UPLOAD);
+        DeleteURecord.getInstance().deleteRecord(key, removeFile, true);
         break;
     }
   }
 
-  private IReceiver putReceiver(@ReceiverType String type, Object obj) {
+  private IReceiver putReceiver(ReceiverType type, Object obj) {
     final String key = getKey(type, obj);
     IReceiver receiver = mReceivers.get(key);
-    boolean needRmReceiver = false;
-    // 监控Dialog、fragment、popupWindow的生命周期
-    final WidgetLiftManager widgetLiftManager = new WidgetLiftManager();
-    if (obj instanceof Dialog) {
-      needRmReceiver = widgetLiftManager.handleDialogLift((Dialog) obj);
-    } else if (obj instanceof PopupWindow) {
-      needRmReceiver = widgetLiftManager.handlePopupWindowLift((PopupWindow) obj);
-    } else if (obj instanceof DialogFragment) {
-      needRmReceiver = widgetLiftManager.handleDialogFragmentLift((DialogFragment) obj);
-    } else if (obj instanceof android.app.DialogFragment) {
-      needRmReceiver = widgetLiftManager.handleDialogFragmentLift((android.app.DialogFragment) obj);
-    }
 
     if (receiver == null) {
-      AbsReceiver absReceiver;
-      switch (type) {
-        case ReceiverType.DOWNLOAD:
-          absReceiver = new DownloadReceiver();
-          break;
-        case ReceiverType.UPLOAD:
-          absReceiver = new UploadReceiver();
-          break;
-        default:
-          absReceiver = new DownloadReceiver();
-          break;
-      }
-      absReceiver.targetName = obj.getClass().getName();
-      AbsReceiver.OBJ_MAP.put(absReceiver.getKey(), obj);
-      absReceiver.needRmListener = needRmReceiver;
+      AbsReceiver absReceiver =
+          type.equals(ReceiverType.DOWNLOAD) ? new DownloadReceiver(obj) : new UploadReceiver(obj);
       mReceivers.put(key, absReceiver);
       receiver = absReceiver;
     }
@@ -389,109 +285,11 @@ import org.xml.sax.SAXException;
    *
    * @param type {@link ReceiverType}
    * @param obj 观察者对象
-   * @return {@link #createKey(String, Object)}
-   */
-  private String getKey(@ReceiverType String type, Object obj) {
-    if (obj instanceof DialogFragment) {
-      relateSubClass(type, obj, ((DialogFragment) obj).getActivity());
-    } else if (obj instanceof android.app.DialogFragment) {
-      relateSubClass(type, obj, ((android.app.DialogFragment) obj).getActivity());
-    } else if (obj instanceof Fragment) {
-      relateSubClass(type, obj, ((Fragment) obj).getActivity());
-    } else if (obj instanceof android.app.Fragment) {
-      relateSubClass(type, obj, ((android.app.Fragment) obj).getActivity());
-    } else if (obj instanceof Dialog) {
-      Activity activity = ((Dialog) obj).getOwnerActivity();
-      if (activity != null) {
-        relateSubClass(type, obj, activity);
-      }
-    } else if (obj instanceof PopupWindow) {
-      Context context = ((PopupWindow) obj).getContentView().getContext();
-      if (context instanceof Activity) {
-        relateSubClass(type, obj, (Activity) context);
-      }
-    }
-    return createKey(type, obj);
-  }
-
-  /**
-   * 关联Activity类和Fragment间的关系
-   *
-   * @param sub Frgament或dialog类
-   * @param activity activity寄主类
-   */
-  private void relateSubClass(@ReceiverType String type, Object sub, Activity activity) {
-    String key = createKey(type, activity);
-    List<String> list = mSubClass.get(key);
-    if (list == null) {
-      list = new ArrayList<>();
-      mSubClass.put(key, list);
-    }
-    list.add(createKey(type, sub));
-  }
-
-  /**
-   * 根据功能类型和控件类型获取对应的key
-   *
-   * @param type {@link ReceiverType}
-   * @param obj 观察者对象
    * @return key的格式为：{@code String.format("%s_%s_%s", obj.getClass().getName(), type,
    * obj.hashCode());}
    */
-  private String createKey(@ReceiverType String type, Object obj) {
-    return String.format("%s_%s_%s", obj.getClass().getName(), type, obj.hashCode());
-  }
-
-  /**
-   * 初始化配置文件
-   */
-  private void initConfig() {
-    mDConfig = Configuration.getInstance().downloadCfg;
-    mUConfig = Configuration.getInstance().uploadCfg;
-    mAConfig = Configuration.getInstance().appCfg;
-    mDGConfig = Configuration.getInstance().dGroupCfg;
-
-    File xmlFile = new File(APP.getFilesDir().getPath() + Configuration.XML_FILE);
-    File tempDir = new File(APP.getFilesDir().getPath() + "/temp");
-    if (!xmlFile.exists()) {
-      loadConfig();
-    } else {
-      try {
-        String md5Code = CommonUtil.getFileMD5(xmlFile);
-        File file = new File(APP.getFilesDir().getPath() + "/temp.xml");
-        if (file.exists()) {
-          file.delete();
-        }
-        CommonUtil.createFileFormInputStream(APP.getAssets().open("aria_config.xml"),
-            file.getPath());
-        if (!CommonUtil.checkMD5(md5Code, file) || !Configuration.getInstance().configExists()) {
-          loadConfig();
-        }
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-    if (tempDir.exists()) {
-      File newDir = new File(APP.getFilesDir().getPath() + DOWNLOAD_TEMP_DIR);
-      newDir.mkdirs();
-      tempDir.renameTo(newDir);
-    }
-  }
-
-  /**
-   * 加载配置文件
-   */
-  private void loadConfig() {
-    try {
-      XMLReader helper = new XMLReader();
-      SAXParserFactory factory = SAXParserFactory.newInstance();
-      SAXParser parser = factory.newSAXParser();
-      parser.parse(APP.getAssets().open("aria_config.xml"), helper);
-      CommonUtil.createFileFormInputStream(APP.getAssets().open("aria_config.xml"),
-          APP.getFilesDir().getPath() + Configuration.XML_FILE);
-    } catch (ParserConfigurationException | IOException | SAXException e) {
-      ALog.e(TAG, e.toString());
-    }
+  private String getKey(ReceiverType type, Object obj) {
+    return String.format("%s_%s_%s", CommonUtil.getTargetName(obj), type.name(), obj.hashCode());
   }
 
   /**
@@ -513,40 +311,47 @@ import org.xml.sax.SAXException;
       ALog.e(TAG, "target obj is null");
       return;
     }
-    List<String> temp = new ArrayList<>();
     // 移除寄主的receiver
     for (Iterator<Map.Entry<String, AbsReceiver>> iter = mReceivers.entrySet().iterator();
         iter.hasNext(); ) {
       Map.Entry<String, AbsReceiver> entry = iter.next();
       String key = entry.getKey();
-      if (key.equals(getKey(ReceiverType.DOWNLOAD, obj)) || key.equals(
-          getKey(ReceiverType.UPLOAD, obj))) {
-        AbsReceiver receiver = mReceivers.get(key);
-        List<String> subNames = mSubClass.get(key);
-        if (subNames != null && !subNames.isEmpty()) {
-          temp.addAll(subNames);
+      AbsReceiver receiver = entry.getValue();
+
+      if (receiver.isFragment()){
+        Method method = CommonUtil.getMethod(receiver.obj.getClass(), "getActivity");
+        if (method != null){
+          try {
+            Activity ac = (Activity) method.invoke(receiver.obj);
+            if (ac == obj){
+              receiver.destroy();
+              iter.remove();
+              continue;
+            }
+          } catch (IllegalAccessException e) {
+            e.printStackTrace();
+          } catch (InvocationTargetException e) {
+            e.printStackTrace();
+          }
         }
-        if (receiver != null) {
-          receiver.destroy();
-        }
+      }
+
+      // 处理内部类的
+      String objClsName = obj.getClass().getName();
+      if (receiver.isLocalOrAnonymousClass && key.startsWith(objClsName)) {
+        receiver.destroy();
+        iter.remove();
+        continue;
+      }
+
+      if (key.equals(getKey(ReceiverType.DOWNLOAD, obj))
+          || key.equals(getKey(ReceiverType.UPLOAD, obj))
+      ) {
+        receiver.destroy();
         iter.remove();
       }
     }
-
-    // 移除寄生的receiver
-    if (!temp.isEmpty()) {
-      for (Iterator<Map.Entry<String, AbsReceiver>> iter = mReceivers.entrySet().iterator();
-          iter.hasNext(); ) {
-        Map.Entry<String, AbsReceiver> entry = iter.next();
-        if (temp.contains(entry.getKey())) {
-          AbsReceiver receiver = mReceivers.get(entry.getKey());
-          if (receiver != null) {
-            receiver.destroy();
-          }
-          iter.remove();
-        }
-      }
-    }
+    Log.d(TAG, "debug");
   }
 
   /**

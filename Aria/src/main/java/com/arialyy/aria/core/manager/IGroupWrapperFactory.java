@@ -15,8 +15,8 @@
  */
 package com.arialyy.aria.core.manager;
 
-import com.arialyy.aria.core.inf.AbsEntity;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 
 /**
  * 任务组通过组创建任务

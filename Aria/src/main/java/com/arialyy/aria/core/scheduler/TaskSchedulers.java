@@ -19,23 +19,25 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Message;
 import com.arialyy.annotations.TaskEnum;
-import com.arialyy.aria.core.AriaManager;
-import com.arialyy.aria.core.download.DownloadGroupTask;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.inf.AbsEntity;
-import com.arialyy.aria.core.inf.AbsNormalEntity;
-import com.arialyy.aria.core.inf.AbsTask;
-import com.arialyy.aria.core.inf.GroupSendParams;
+import com.arialyy.aria.core.AriaConfig;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.common.AbsNormalEntity;
+import com.arialyy.aria.core.group.GroupSendParams;
 import com.arialyy.aria.core.inf.IEntity;
-import com.arialyy.aria.core.inf.ITask;
 import com.arialyy.aria.core.inf.TaskSchedulerType;
+import com.arialyy.aria.core.listener.ISchedulers;
 import com.arialyy.aria.core.manager.TaskWrapperManager;
-import com.arialyy.aria.core.queue.DownloadGroupTaskQueue;
-import com.arialyy.aria.core.queue.DownloadTaskQueue;
+import com.arialyy.aria.core.queue.DGroupTaskQueue;
+import com.arialyy.aria.core.queue.DTaskQueue;
 import com.arialyy.aria.core.queue.ITaskQueue;
-import com.arialyy.aria.core.queue.UploadTaskQueue;
-import com.arialyy.aria.core.upload.UploadTask;
+import com.arialyy.aria.core.queue.UTaskQueue;
+import com.arialyy.aria.core.task.AbsTask;
+import com.arialyy.aria.core.task.DownloadGroupTask;
+import com.arialyy.aria.core.task.DownloadTask;
+import com.arialyy.aria.core.task.ITask;
+import com.arialyy.aria.core.task.UploadTask;
 import com.arialyy.aria.util.ALog;
+import com.arialyy.aria.util.CommonUtil;
 import com.arialyy.aria.util.NetUtils;
 import java.util.Iterator;
 import java.util.Map;
@@ -46,16 +48,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by lyy on 2017/6/4. 事件调度器，用于处理任务状态的调度
  */
 public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
-  private final String TAG = "AbsSchedulers";
+  private final String TAG = CommonUtil.getClassName(getClass());
 
   private static volatile TaskSchedulers INSTANCE;
   private static FailureTaskHandler mFailureTaskHandler;
 
-  private Map<String, Map<TaskEnum, ISchedulerListener>> mObservers = new ConcurrentHashMap<>();
-  private AriaManager mAriaManager;
+  private Map<String, Map<TaskEnum, Object>> mObservers = new ConcurrentHashMap<>();
+  private AriaConfig mAriaConfig;
 
   private TaskSchedulers() {
-    mAriaManager = AriaManager.getInstance();
+    mAriaConfig = AriaConfig.getInstance();
   }
 
   public static TaskSchedulers getInstance() {
@@ -73,18 +75,17 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
   /**
    * 通过任务类型获取任务队列
    *
-   * @param curTask 当前接收到的的任务
+   * @param taskType 任务类型
    */
-  ITaskQueue getQueue(TASK curTask) {
-    int taskType = curTask.getTaskType();
+  ITaskQueue getQueue(int taskType) {
     if (taskType == ITask.DOWNLOAD) {
-      return DownloadTaskQueue.getInstance();
+      return DTaskQueue.getInstance();
     }
     if (taskType == ITask.DOWNLOAD_GROUP) {
-      return DownloadGroupTaskQueue.getInstance();
+      return DGroupTaskQueue.getInstance();
     }
     if (taskType == ITask.UPLOAD) {
-      return UploadTaskQueue.getInstance();
+      return UTaskQueue.getInstance();
     }
     throw new NullPointerException("任务类型错误，type = " + taskType);
   }
@@ -97,15 +98,19 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
    */
   public void register(Object obj, TaskEnum taskEnum) {
     String targetName = obj.getClass().getName();
-    Map<TaskEnum, ISchedulerListener> listeners = mObservers.get(getKey(obj));
+    Map<TaskEnum, Object> listeners = mObservers.get(getKey(obj));
 
     if (listeners == null) {
       listeners = new ConcurrentHashMap<>();
       mObservers.put(getKey(obj), listeners);
     }
-    String proxyClassName = targetName + taskEnum.proxySuffix;
 
     if (!hasProxyListener(listeners, taskEnum)) {
+      if (obj instanceof TaskInternalListenerInterface) {
+        listeners.put(taskEnum, obj);
+        return;
+      }
+      String proxyClassName = targetName + taskEnum.proxySuffix;
       ISchedulerListener listener = createListener(proxyClassName);
       if (listener != null) {
         listener.setListener(obj);
@@ -122,7 +127,7 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
    * @param taskEnum 代理类类型
    * @return true，已注册代理类，false，没有注册代理类
    */
-  private boolean hasProxyListener(Map<TaskEnum, ISchedulerListener> listeners, TaskEnum taskEnum) {
+  private boolean hasProxyListener(Map<TaskEnum, Object> listeners, TaskEnum taskEnum) {
     return !listeners.isEmpty() && listeners.get(taskEnum) != null;
   }
 
@@ -135,9 +140,9 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     if (!mObservers.containsKey(getKey(obj))) {
       return;
     }
-    for (Iterator<Map.Entry<String, Map<TaskEnum, ISchedulerListener>>> iter =
+    for (Iterator<Map.Entry<String, Map<TaskEnum, Object>>> iter =
         mObservers.entrySet().iterator(); iter.hasNext(); ) {
-      Map.Entry<String, Map<TaskEnum, ISchedulerListener>> entry = iter.next();
+      Map.Entry<String, Map<TaskEnum, Object>> entry = iter.next();
 
       if (entry.getKey().equals(getKey(obj))) {
         iter.remove();
@@ -170,6 +175,11 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
   }
 
   @Override public boolean handleMessage(Message msg) {
+    if (msg.what == CHECK_FAIL) {
+      handlePreFailTask(msg.arg1);
+      return true;
+    }
+
     if (msg.arg1 == IS_SUB_TASK) {
       return handleSubEvent(msg);
     }
@@ -179,11 +189,11 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     }
 
     TASK task = (TASK) msg.obj;
-    if (task == null && msg.what != ISchedulers.CHECK_FAIL) {
+    if (task == null) {
       ALog.e(TAG, "请传入下载任务");
       return true;
     }
-    handleNormalEvent(task, msg.what, msg.arg1);
+    handleNormalEvent(task, msg.what);
     return true;
   }
 
@@ -195,7 +205,7 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     if (mObservers.size() > 0) {
       Set<String> keys = mObservers.keySet();
       for (String key : keys) {
-        Map<TaskEnum, ISchedulerListener> listeners = mObservers.get(key);
+        Map<TaskEnum, Object> listeners = mObservers.get(key);
         if (listeners == null || listeners.isEmpty()) {
           continue;
         }
@@ -225,11 +235,12 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
       }
     }
 
-    boolean canSend = mAriaManager.getAppConfig().isUseBroadcast();
+    boolean canSend = mAriaConfig.getAConfig().isUseBroadcast();
     if (canSend) {
       Intent intent = new Intent(ISchedulers.ARIA_TASK_INFO_ACTION);
+      intent.setPackage(mAriaConfig.getAPP().getPackageName());
       intent.putExtras(data);
-      mAriaManager.getAPP().sendBroadcast(intent);
+      mAriaConfig.getAPP().sendBroadcast(intent);
     }
 
     return true;
@@ -243,7 +254,7 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     if (mObservers.size() > 0) {
       Set<String> keys = mObservers.keySet();
       for (String key : keys) {
-        Map<TaskEnum, ISchedulerListener> listeners = mObservers.get(key);
+        Map<TaskEnum, Object> listeners = mObservers.get(key);
         if (listeners == null || listeners.isEmpty()) {
           continue;
         }
@@ -279,9 +290,9 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
       }
     }
 
-    boolean canSend = mAriaManager.getAppConfig().isUseBroadcast();
+    boolean canSend = mAriaConfig.getAConfig().isUseBroadcast();
     if (canSend) {
-      mAriaManager.getAPP().sendBroadcast(
+      mAriaConfig.getAPP().sendBroadcast(
           createData(msg.what, ITask.DOWNLOAD_GROUP_SUB, params.entity));
     }
 
@@ -291,8 +302,8 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
   /**
    * 处理普通任务和任务组的事件
    */
-  private void handleNormalEvent(TASK task, int what, int arg1) {
-    ITaskQueue queue = getQueue(task);
+  private void handleNormalEvent(TASK task, int what) {
+    ITaskQueue queue = getQueue(task.getTaskType());
     switch (what) {
       case STOP:
         if (task.getState() == IEntity.STATE_WAIT) {
@@ -323,9 +334,6 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
       case FAIL:
         handleFailTask(queue, task);
         break;
-      case CHECK_FAIL:
-        handlePreFailTask(queue, arg1);
-        break;
     }
 
     if (what == FAIL || what == CHECK_FAIL) {
@@ -342,35 +350,41 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     normalTaskCallback(what, task);
   }
 
-  private void handlePreFailTask(ITaskQueue queue, int taskType) {
-    startNextTask(queue, TaskSchedulerType.TYPE_DEFAULT);
+  /**
+   * 处理what为{@link #CHECK_FAIL}信息错误的任务
+   *
+   * @param taskType 任务类型
+   */
+  private void handlePreFailTask(int taskType) {
+    startNextTask(getQueue(taskType), TaskSchedulerType.TYPE_DEFAULT);
 
     // 发送广播
-    boolean canSend = mAriaManager.getAppConfig().isUseBroadcast();
+    boolean canSend = mAriaConfig.getAConfig().isUseBroadcast();
     if (canSend) {
       Intent intent = new Intent(ISchedulers.ARIA_TASK_INFO_ACTION);
+      intent.setPackage(mAriaConfig.getAPP().getPackageName());
       Bundle b = new Bundle();
       b.putInt(ISchedulers.TASK_TYPE, taskType);
       b.putInt(ISchedulers.TASK_STATE, ISchedulers.FAIL);
-      mAriaManager.getAPP().sendBroadcast(intent);
+      mAriaConfig.getAPP().sendBroadcast(intent);
     }
 
     // 处理回调
     if (mObservers.size() > 0) {
       Set<String> keys = mObservers.keySet();
       for (String key : keys) {
-        Map<TaskEnum, ISchedulerListener> listeners = mObservers.get(key);
+        Map<TaskEnum, Object> listeners = mObservers.get(key);
         if (listeners == null || listeners.isEmpty()) {
           continue;
         }
-        NormalTaskListener<TASK> listener = null;
+        NormalTaskListenerInterface<TASK> listener = null;
         if (mObservers.get(key) != null) {
           if (taskType == ITask.DOWNLOAD) {
-            listener = (NormalTaskListener<TASK>) listeners.get(TaskEnum.DOWNLOAD);
+            listener = (NormalTaskListenerInterface<TASK>) listeners.get(TaskEnum.DOWNLOAD);
           } else if (taskType == ITask.DOWNLOAD_GROUP) {
-            listener = (NormalTaskListener<TASK>) listeners.get(TaskEnum.DOWNLOAD_GROUP);
+            listener = (NormalTaskListenerInterface<TASK>) listeners.get(TaskEnum.DOWNLOAD_GROUP);
           } else if (taskType == ITask.DOWNLOAD_GROUP) {
-            listener = (NormalTaskListener<TASK>) listeners.get(TaskEnum.UPLOAD);
+            listener = (NormalTaskListenerInterface<TASK>) listeners.get(TaskEnum.UPLOAD);
           }
         }
         if (listener != null) {
@@ -390,18 +404,18 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     if (mObservers.size() > 0) {
       Set<String> keys = mObservers.keySet();
       for (String key : keys) {
-        Map<TaskEnum, ISchedulerListener> listeners = mObservers.get(key);
+        Map<TaskEnum, Object> listeners = mObservers.get(key);
         if (listeners == null || listeners.isEmpty()) {
           continue;
         }
-        NormalTaskListener<TASK> listener = null;
+        NormalTaskListenerInterface<TASK> listener = null;
         if (mObservers.get(key) != null) {
           if (task instanceof DownloadTask) {
-            listener = (NormalTaskListener<TASK>) listeners.get(TaskEnum.DOWNLOAD);
+            listener = (NormalTaskListenerInterface<TASK>) listeners.get(TaskEnum.DOWNLOAD);
           } else if (task instanceof DownloadGroupTask) {
-            listener = (NormalTaskListener<TASK>) listeners.get(TaskEnum.DOWNLOAD_GROUP);
+            listener = (NormalTaskListenerInterface<TASK>) listeners.get(TaskEnum.DOWNLOAD_GROUP);
           } else if (task instanceof UploadTask) {
-            listener = (NormalTaskListener<TASK>) listeners.get(TaskEnum.UPLOAD);
+            listener = (NormalTaskListenerInterface<TASK>) listeners.get(TaskEnum.UPLOAD);
           }
         }
         if (listener != null) {
@@ -411,7 +425,7 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     }
   }
 
-  private void normalTaskCallback(int state, TASK task, NormalTaskListener<TASK> listener) {
+  private void normalTaskCallback(int state, TASK task, NormalTaskListenerInterface<TASK> listener) {
     if (listener != null) {
       if (task == null && state != ISchedulers.CHECK_FAIL) {
         ALog.e(TAG, "TASK 为null，回调失败");
@@ -463,16 +477,16 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
    * 发送普通任务的广播
    */
   private void sendNormalBroadcast(int state, TASK task) {
-    boolean canSend = mAriaManager.getAppConfig().isUseBroadcast();
+    boolean canSend = mAriaConfig.getAConfig().isUseBroadcast();
     if (!canSend) {
       return;
     }
     int type = task.getTaskType();
     if (type == ITask.DOWNLOAD || type == ITask.DOWNLOAD_GROUP) {
-      mAriaManager.getAPP().sendBroadcast(
+      mAriaConfig.getAPP().sendBroadcast(
           createData(state, type, task.getTaskWrapper().getEntity()));
     } else if (type == ITask.UPLOAD) {
-      mAriaManager.getAPP().sendBroadcast(
+      mAriaConfig.getAPP().sendBroadcast(
           createData(state, type, task.getTaskWrapper().getEntity()));
     } else {
       ALog.w(TAG, "发送广播失败，没有对应的任务");
@@ -488,6 +502,7 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
    */
   private Intent createData(int taskState, int taskType, AbsEntity entity) {
     Intent intent = new Intent(ISchedulers.ARIA_TASK_INFO_ACTION);
+    intent.setPackage(mAriaConfig.getAPP().getPackageName());
     Bundle b = new Bundle();
     b.putInt(ISchedulers.TASK_TYPE, taskType);
     b.putInt(ISchedulers.TASK_STATE, taskState);
@@ -512,9 +527,9 @@ public class TaskSchedulers<TASK extends ITask> implements ISchedulers {
     }
 
     int num = task.getTaskWrapper().getConfig().getReTryNum();
-    boolean isNotNetRetry = mAriaManager.getAppConfig().isNotNetRetry();
+    boolean isNotNetRetry = mAriaConfig.getAConfig().isNotNetRetry();
 
-    if ((!NetUtils.isConnected(mAriaManager.getAPP()) && !isNotNetRetry)
+    if ((!NetUtils.isConnected(mAriaConfig.getAPP()) && !isNotNetRetry)
         || task.getTaskWrapper().getEntity().getFailNum() > num) {
       queue.removeTaskFormQueue(task.getKey());
       startNextTask(queue, task.getSchedulerType());

@@ -33,12 +33,13 @@ public class HttpDownloadModule extends BaseViewModule {
   private final String HTTP_PATH_KEY = "HTTP_PATH_KEY";
 
   private final String defUrl =
-      "http://hzdown.muzhiwan.com/2017/05/08/nl.noio.kingdom_59104935e56f0.apk1";
+      "http://hzdown.muzhiwan.com/2017/05/08/nl.noio.kingdom_59104935e56f0.apk";
+      //"https://ss1.baidu.com/-4o3dSag_xI4khGko9WTAnF6hhy/image/h%3D300/sign=a9e671b9a551f3dedcb2bf64a4eff0ec/4610b912c8fcc3cef70d70409845d688d53f20f7.jpg";
   //"http://9.9.9.205:5000/download/Cyberduck-6.9.4.30164.zip";
   //"http://202.98.201.103:7000/vrs/TPK/ZTC440402001Z.tpk";
   private final String defFilePath =
       Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath()
-          + "/ZTC440402001Z.tpk";
+          + "/update.zip";
 
   private MutableLiveData<DownloadEntity> liveData = new MutableLiveData<>();
   private DownloadEntity singDownloadInfo;
@@ -47,16 +48,20 @@ public class HttpDownloadModule extends BaseViewModule {
    * 单任务下载的信息
    */
   LiveData<DownloadEntity> getHttpDownloadInfo(Context context) {
-    String url = AppUtil.getConfigValue(context, HTTP_URL_KEY, defUrl);
-    //String url =
-    //    "http://sdkdown.muzhiwan.com/openfile/2019/05/21/com.netease.tom.mzw_5ce3ef8754d05.apk";
-    String filePath = AppUtil.getConfigValue(context, HTTP_PATH_KEY, defFilePath);
+    //String url = AppUtil.getConfigValue(context, HTTP_URL_KEY, defUrl);
+    //String url = "http://fdfs.speedata.cn:9989/group1/M00/00/05/rBGFrl3fdAKAVJwfMtSa9R18wLU139.zip";
+    //String url = "http://9.9.9.28:8088/files/update.zip";
+    String url = "https://y.qq.com/download/import/QQMusic-import-1.2.1.zip";
+    //String url = "https://gitee.com/huang-junhua/iptv/raw/master/guonei.m3u8";
+    //String url = "http://v.kjjl100.com/kz/zx/cj/2020cjswxdb/1.mp4";
+    //String url = "https://static.runoob.com/images/demo/demo2.jpg";
+    String filePath = "/mnt/sdcard/qq.zip";
 
     singDownloadInfo = Aria.download(context).getFirstDownloadEntity(url);
     if (singDownloadInfo == null) {
       singDownloadInfo = new DownloadEntity();
       singDownloadInfo.setUrl(url);
-      File file = new File(defFilePath);
+      File file = new File(filePath);
       singDownloadInfo.setFilePath(filePath);
       singDownloadInfo.setFileName(file.getName());
     } else {

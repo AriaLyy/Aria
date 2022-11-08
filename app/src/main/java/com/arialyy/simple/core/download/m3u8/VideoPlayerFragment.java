@@ -1,6 +1,8 @@
 package com.arialyy.simple.core.download.m3u8;
 
 import android.annotation.SuppressLint;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Build;
@@ -13,7 +15,7 @@ import android.widget.SeekBar;
 import androidx.annotation.RequiresApi;
 import androidx.lifecycle.ViewModelProviders;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.m3u8.M3U8Entity;
+import com.arialyy.aria.core.download.M3U8Entity;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.frame.base.BaseFragment;
 import com.arialyy.simple.R;
@@ -37,6 +39,7 @@ public class VideoPlayerFragment extends BaseFragment<FragmentVideoPlayerBinding
   private MediaPlayer mCurrentPlayer;
   private LoadingDialog mLoadingDialog;
   private int mJumpIndex = -1;
+  private boolean needPaint= true;
 
   VideoPlayerFragment(int peerIndex, DownloadEntity entity) {
     mEntity = entity;
@@ -59,6 +62,12 @@ public class VideoPlayerFragment extends BaseFragment<FragmentVideoPlayerBinding
     getBinding().surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
       @Override public void surfaceCreated(SurfaceHolder holder) {
         mSurfaceHolder = holder;
+        //if (needPaint){
+        //  needPaint = false;
+        //  Canvas canvas = holder.lockCanvas();
+        //  canvas.drawColor(Color.BLACK);
+        //  holder.unlockCanvasAndPost(canvas);
+        //}
         startNewPlayer(mPlayers.valueAt(0));
       }
 
@@ -91,6 +100,7 @@ public class VideoPlayerFragment extends BaseFragment<FragmentVideoPlayerBinding
       @Override public void onStopTrackingTouch(SeekBar seekBar) {
         PeerIndex index = new PeerIndex();
         index.index = seekBar.getProgress();
+        mJumpIndex = index.index;
         EventBus.getDefault().post(index);
         if (mCurrentPlayer != null && mCurrentPlayer.isPlaying()) {
           mCurrentPlayer.stop();
@@ -98,7 +108,6 @@ public class VideoPlayerFragment extends BaseFragment<FragmentVideoPlayerBinding
           mCurrentPlayer.release();
         }
         showLoadingDialog();
-        mJumpIndex = seekBar.getProgress();
       }
     });
 

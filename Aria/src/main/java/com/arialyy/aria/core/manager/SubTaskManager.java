@@ -20,7 +20,7 @@ import com.arialyy.aria.core.command.GroupCmdFactory;
 import com.arialyy.aria.core.download.DGTaskWrapper;
 import com.arialyy.aria.core.event.EventMsgUtil;
 import com.arialyy.aria.util.ALog;
-import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.core.command.CmdHelper;
 import java.util.List;
 
 /**
@@ -28,12 +28,10 @@ import java.util.List;
  * 子任务管理器
  */
 public class SubTaskManager {
-  private String TAG = "SubTaskManager";
+  private final String TAG = getClass().getSimpleName();
   private DGTaskWrapper mEntity;
-  private String mTargetName;
 
-  public SubTaskManager(String targetName, DGTaskWrapper entity) {
-    mTargetName = targetName;
+  public SubTaskManager(DGTaskWrapper entity) {
     mEntity = entity;
   }
 
@@ -44,9 +42,8 @@ public class SubTaskManager {
    */
   public void startSubTask(String url) {
     if (checkUrl(url)) {
-      EventMsgUtil.getDefault()
-          .post(
-              CommonUtil.createGroupCmd(mTargetName, mEntity, GroupCmdFactory.SUB_TASK_START, url));
+      EventMsgUtil.getDefault().post(
+          CmdHelper.createGroupCmd(mEntity, GroupCmdFactory.SUB_TASK_START, url));
     }
   }
 
@@ -57,9 +54,8 @@ public class SubTaskManager {
    */
   public void stopSubTask(String url) {
     if (checkUrl(url)) {
-      EventMsgUtil.getDefault()
-          .post(
-              CommonUtil.createGroupCmd(mTargetName, mEntity, GroupCmdFactory.SUB_TASK_STOP, url));
+      EventMsgUtil.getDefault().post(
+          CmdHelper.createGroupCmd(mEntity, GroupCmdFactory.SUB_TASK_STOP, url));
     }
   }
 

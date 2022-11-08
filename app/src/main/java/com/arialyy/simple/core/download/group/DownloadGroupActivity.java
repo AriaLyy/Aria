@@ -21,17 +21,18 @@ import android.util.Log;
 import android.view.View;
 import com.arialyy.annotations.DownloadGroup;
 import com.arialyy.aria.core.Aria;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.common.HttpOption;
 import com.arialyy.aria.core.download.DownloadEntity;
 import com.arialyy.aria.core.download.DownloadGroupEntity;
-import com.arialyy.aria.core.download.DownloadGroupTask;
-import com.arialyy.aria.core.inf.IEntity;
-import com.arialyy.aria.core.inf.IHttpFileLenAdapter;
+import com.arialyy.aria.core.processor.IHttpFileLenAdapter;
+import com.arialyy.aria.core.task.DownloadGroupTask;
 import com.arialyy.aria.util.ALog;
-import com.arialyy.frame.util.show.L;
 import com.arialyy.frame.util.show.T;
 import com.arialyy.simple.R;
 import com.arialyy.simple.base.BaseActivity;
 import com.arialyy.simple.databinding.ActivityDownloadGroupBinding;
+import com.arialyy.simple.widget.ProgressLayout;
 import com.arialyy.simple.widget.SubStateLinearLayout;
 import java.util.List;
 import java.util.Map;
@@ -56,23 +57,48 @@ public class DownloadGroupActivity extends BaseActivity<ActivityDownloadGroupBin
     if (entity != null) {
       mTaskId = entity.getId();
       mChildList.addData(entity.getSubEntities());
-      getBinding().setStateStr(
-          entity.getState() == IEntity.STATE_RUNNING ? getString(R.string.stop)
-              : getString(R.string.resume));
-      getBinding().setFileSize(entity.getConvertFileSize());
-      if (entity.getFileSize() == 0) {
-        getBinding().setProgress(0);
-      } else {
-        getBinding().setProgress(entity.isComplete() ? 100
-            : (int) (entity.getCurrentProgress() * 100 / entity.getFileSize()));
-      }
       ALog.d(TAG,
           "size = " + entity.getSubEntities().size() + "; len = " + entity.getConvertFileSize());
+    }else {
+      entity = new DownloadGroupEntity();
     }
+    getBinding().pl.setInfo(entity);
 
     mChildList.setOnItemClickListener(new SubStateLinearLayout.OnItemClickListener() {
       @Override public void onItemClick(int position, View view) {
         showPopupWindow(position);
+      }
+    });
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
+        mTaskId = Aria.download(this)
+            .loadGroup(mUrls)
+            .setDirPath(
+                Environment.getExternalStorageDirectory().getPath() + "/Download/group_imgs1")
+            //.setSubFileName(getModule(GroupModule.class).getSubName2())
+            .setSubFileName(getModule(GroupModule.class).getSubName())
+            .unknownSize()
+            .option(getHttpOption())
+            .ignoreFilePathOccupy()
+            //.setFileSize(114981416)
+            //.updateUrls(temp)
+            .create();
+        Log.d(TAG, "taskId = " + mTaskId);
+      }
+
+      @Override public void stop(View v, AbsEntity entity) {
+        Aria.download(this).loadGroup(mTaskId).stop();
+      }
+
+      @Override public void resume(View v, AbsEntity entity) {
+        Aria.download(this).loadGroup(mTaskId)
+            .unknownSize()
+            .resume(true);
+      }
+
+      @Override public void cancel(View v, AbsEntity entity) {
+        Aria.download(this).loadGroup(mTaskId).cancel(true);
+        mTaskId = -1;
       }
     });
   }
@@ -87,115 +113,72 @@ public class DownloadGroupActivity extends BaseActivity<ActivityDownloadGroupBin
     return R.layout.activity_download_group;
   }
 
-  public void onClick(View view) {
-    switch (view.getId()) {
-      case R.id.start:
-        if (mTaskId == -1) {
-          mTaskId = Aria.download(this)
-              .loadGroup(mUrls)
-              .setDirPath(
-                  Environment.getExternalStorageDirectory().getPath() + "/Download/group_test_2")
-              .setGroupAlias("任务组测试")
-              //.setSubFileName(getModule(GroupModule.class).getSubName2())
-              .setSubFileName(getModule(GroupModule.class).getSubName())
-              .unknownSize()
-              .setFileLenAdapter(new IHttpFileLenAdapter() {
-                @Override public long handleFileLen(Map<String, List<String>> headers) {
-
-                  List<String> sLength = headers.get("Content-Length");
-                  if (sLength == null || sLength.isEmpty()) {
-                    return -1;
-                  }
-                  String temp = sLength.get(0);
-
-                  return Long.parseLong(temp);
-                }
-              })
-              .setFileSize(114981416)
-              //.updateUrls(temp)
-              .create();
-          getBinding().setStateStr(getString(R.string.stop));
-          break;
-        }
-        if (Aria.download(this).loadGroup(mTaskId).isRunning()) {
-          Aria.download(this).loadGroup(mTaskId).stop();
-          getBinding().setStateStr(getString(R.string.resume));
-        } else {
-          Aria.download(this).loadGroup(mTaskId).resume();
-          getBinding().setStateStr(getString(R.string.stop));
-        }
-        break;
-      case R.id.cancel:
-        Aria.download(this).loadGroup(mTaskId).cancel(true);
-        mTaskId = -1;
-        break;
-    }
+  private HttpOption getHttpOption() {
+    HttpOption option = new HttpOption();
+    option.setFileLenAdapter(new HttpFileLenAdapter());
+    return option;
   }
 
   @DownloadGroup.onWait void taskWait(DownloadGroupTask task) {
-    L.d(TAG, task.getTaskName() + "wait");
+    ALog.d(TAG, task.getTaskName() + "wait");
   }
 
   @DownloadGroup.onPre() protected void onPre(DownloadGroupTask task) {
-    L.d(TAG, "group pre");
+    ALog.d(TAG, "group pre, p = " + task.getPercent());
   }
 
   @DownloadGroup.onTaskPre() protected void onTaskPre(DownloadGroupTask task) {
-    L.d(TAG, "group task pre");
-    getBinding().setFileSize(task.getConvertFileSize());
+    ALog.d(TAG, "group task pre, p = " + task.getPercent());
     if (mChildList.getSubData().size() <= 0) {
       mChildList.addData(task.getEntity().getSubEntities());
     }
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @DownloadGroup.onTaskStart() void taskStart(DownloadGroupTask task) {
-    getBinding().setFileSize(task.getConvertFileSize());
-    L.d(TAG, "group task create");
+    ALog.d(TAG, "group task create, p = " + task.getPercent());
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @DownloadGroup.onTaskRunning() protected void running(DownloadGroupTask task) {
-    Log.d(TAG, "group running, p = "
+    ALog.d(TAG, "group running, p = "
         + task.getPercent()
         + ", speed = "
         + task.getConvertSpeed()
-        + "current_p = "
+        + ", current_p = "
         + task.getCurrentProgress());
-    getBinding().setProgress(task.getPercent());
-    getBinding().setSpeed(task.getConvertSpeed());
+    getBinding().pl.setInfo(task.getEntity());
     //Log.d(TAG, "sub_len = " + task.getEntity().getSubEntities().size());
     mChildList.updateChildProgress(task.getEntity().getSubEntities());
   }
 
   @DownloadGroup.onTaskResume() void taskResume(DownloadGroupTask task) {
-    L.d(TAG, "group task resume");
+    ALog.d(TAG, "group task resume, p = " + task.getPercent());
   }
 
   @DownloadGroup.onTaskStop() void taskStop(DownloadGroupTask task) {
-    L.d(TAG, "group task stop");
-    getBinding().setSpeed("");
-    getBinding().setStateStr(getString(R.string.start));
+    ALog.d(TAG, "group task stop");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @DownloadGroup.onTaskCancel() void taskCancel(DownloadGroupTask task) {
-    L.d(TAG, "group task cancel");
-    getBinding().setSpeed("");
-    getBinding().setProgress(0);
-    getBinding().setStateStr(getString(R.string.start));
+    ALog.d(TAG, "group task cancel");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @DownloadGroup.onTaskFail() void taskFail(DownloadGroupTask task) {
-    L.d(TAG, "group task fail");
-    getBinding().setStateStr(getString(R.string.resume));
-    getBinding().setSpeed("");
+    if (task != null){
+
+      ALog.d(TAG, "group task fail");
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
   @DownloadGroup.onTaskComplete() void taskComplete(DownloadGroupTask task) {
-    getBinding().setProgress(100);
-    getBinding().setSpeed("");
     mChildList.updateChildProgress(task.getEntity().getSubEntities());
     T.showShort(this, "任务组下载完成");
-    L.d(TAG, "任务组下载完成");
-    getBinding().setStateStr(getString(R.string.start));
+    ALog.d(TAG, "任务组下载完成");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
   @DownloadGroup.onSubTaskRunning void onSubTaskRunning(DownloadGroupTask groupTask,
@@ -246,5 +229,18 @@ public class DownloadGroupActivity extends BaseActivity<ActivityDownloadGroupBin
 
   @DownloadGroup.onSubTaskFail void onSubTaskFail(DownloadGroupTask groupTask,
       DownloadEntity subEntity) {
+  }
+
+  static class HttpFileLenAdapter implements IHttpFileLenAdapter {
+    @Override public long handleFileLen(Map<String, List<String>> headers) {
+
+      List<String> sLength = headers.get("Content-Length");
+      if (sLength == null || sLength.isEmpty()) {
+        return -1;
+      }
+      String temp = sLength.get(0);
+
+      return Long.parseLong(temp);
+    }
   }
 }

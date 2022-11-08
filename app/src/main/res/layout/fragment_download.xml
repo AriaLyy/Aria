@@ -1,60 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:bind="http://schemas.android.com/apk/res-auto"
-    >
-
-  <data>
-    <variable
-        name="fileSize"
-        type="String"
-        />
-    <variable
-        name="speed"
-        type="String"
-        />
-    <variable
-        name="progress"
-        type="int"
-        />
-    <variable
-        name="stateStr"
-        type="String"
-        />
-    <variable
-        name="file_name"
-        type="String"
-        />
-    <variable
-        name="url"
-        type="String"
-        />
-  </data>
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
 
   <LinearLayout
       android:layout_width="match_parent"
       android:layout_height="match_parent"
-      android:orientation="vertical"
-      >
+      android:orientation="vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <com.arialyy.simple.widget.ProgressLayout
+        android:id="@+id/pl"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@{@string/file_name(file_name)}"
-        />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@{@string/url(url)}"
-        />
-
-    <include
-        layout="@layout/layout_content_single"
-        bind:fileSize="@{fileSize}"
-        bind:progress="@{progress}"
-        bind:speed="@{speed}"
-        bind:stateStr="@{stateStr}"
-        />
+        android:layout_margin="16dp" />
 
   </LinearLayout>
 </layout>

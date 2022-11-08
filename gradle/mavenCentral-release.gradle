@@ -1,0 +1,229 @@
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+ext {
+  PUBLISH_GROUP_ID = rootProject.ext.mavenCentralGroupId
+  PUBLISH_VERSION = rootProject.ext.mavenVersion
+}
+
+
+//编译groovy代码时采用 UTF-8
+tasks.withType(GroovyCompile) {
+  groovyOptions.encoding = "UTF-8"
+}
+//编译JAVA文件时采用UTF-8
+tasks.withType(JavaCompile) {
+  options.encoding = "UTF-8"
+}
+
+// java doc 采用utf-8
+// https://docs.gradle.org/current/dsl/org.gradle.api.tasks.javadoc.Javadoc.html#org.gradle.api.tasks.javadoc.Javadoc:options
+tasks.withType(Javadoc) {
+  if(JavaVersion.current().isJava9Compatible()) {
+    options.addBooleanOption('html5', true)
+  }
+  options {
+    encoding "UTF-8"
+    charSet 'UTF-8'
+    links "http://docs.oracle.com/javase/7/docs/api"
+    addStringOption('Xdoclint:none', '-quiet') // 忽略检查@params 和 @return
+  }
+}
+
+ext["signing.keyId"] = ''
+ext["signing.password"] = ''
+ext["signing.secretKeyRingFile"] = ''
+ext["ossrhUsername"] = ''
+ext["ossrhPassword"] = ''
+
+File secretPropsFile = project.rootProject.file('local.properties')
+if (secretPropsFile.exists()) {
+  println "Found secret props file, loading props"
+  Properties p = new Properties()
+  p.load(new FileInputStream(secretPropsFile))
+  p.each { name, value ->
+    ext[name] = value
+  }
+} else {
+  println "No props file, loading env vars"
+}
+
+static def localMavenRepo() {
+  'file://' + new File(System.getProperty('user.home'), '.m2/repository').absolutePath
+}
+
+def getReleaseRepositoryUrl() {
+  return isLocal() ? localMavenRepo()
+      : hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
+      : 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
+}
+
+def getSnapshotRepositoryUrl() {
+  return isLocal() ? localMavenRepo()
+      : hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
+      : 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+}
+
+def isLocal(){
+  return ISLOCAL == 'true'
+}
+
+afterEvaluate { project ->
+  if (isLocal()) {
+    println("上传到本地仓库")
+  } else {
+    println("上传到中央仓库")
+  }
+  publishing {
+    def isAndroidProject = project.plugins.hasPlugin('com.android.application') || project.
+        plugins.
+        hasPlugin('com.android.library')
+    publications {
+      release(MavenPublication) {
+        // groupId 等信息
+        groupId PUBLISH_GROUP_ID
+        artifactId PUBLISH_ARTIFACT_ID
+        version PUBLISH_VERSION
+
+        if (isAndroidProject) {
+          // 移除R文件，移除BuildConfig文件
+          generateReleaseBuildConfig.enabled = false
+          generateDebugBuildConfig.enabled = false
+          generateReleaseResValues.enabled = false
+          generateDebugResValues.enabled = false
+          // 使用了这个组件，就不需要自己aar、pom.withxml了
+          from components.release
+
+          def variants = project.android.libraryVariants.findAll {
+            it.buildType.name.equalsIgnoreCase('debug')
+          }
+
+          def getAndroidSdkDirectory = project.android.sdkDirectory
+
+          def getAndroidJar = "${getAndroidSdkDirectory}/platforms/${project.android.compileSdkVersion}/android.jar"
+
+          task androidJavadocs(type: Javadoc, dependsOn: assembleDebug) {
+            println("开始打包aar")
+            source = variants.collect { it.getJavaCompileProvider().get().source }
+            classpath = files(
+                getAndroidJar,
+                project.file("build/intermediates/classes/debug")
+            )
+            doFirst {
+              classpath += files(variants.collect { it.javaCompile.classpath.files })
+            }
+            options {
+              links("http://docs.oracle.com/javase/7/docs/api/")
+              linksOffline("http://d.android.com/reference",
+                  "${getAndroidSdkDirectory}/docs/reference")
+              encoding "UTF-8"
+              charSet 'UTF-8'
+              addStringOption('Xdoclint:none', '-quiet') // 忽略检查@params 和 @return
+            }
+
+            exclude '**/R.java'
+            exclude "**/BuildConfig.class"
+          }
+
+          def cleanJavadocTask = task("cleanJavadocTask", type: Delete) {
+            delete androidJavadocs.destinationDir
+          } as Task
+          project.clean.dependsOn(cleanJavadocTask)
+
+          task androidJavadocsJar(type: Jar, dependsOn: androidJavadocs) {
+            classifier = 'javadoc'
+            from androidJavadocs.destinationDir
+            baseName "${JAR_PREFIX}${project.name}"
+          }
+
+          task androidSourcesJar(type: Jar) {
+            classifier = 'sources'
+            from project.android.sourceSets.main.java.source
+            baseName "${JAR_PREFIX}${project.name}"
+
+            exclude "**/R.class"
+            exclude "**/BuildConfig.class"
+          }
+
+          task androidLibraryJar(type: Jar, dependsOn: compileDebugJavaWithJavac
+              /* == variant.javaCompile */) {
+            // java 编译后的 class文件, build/intermediates/classes/debug/
+            from compileDebugJavaWithJavac.destinationDir
+            //  kotlin 编译后的 class文件
+            from 'build/tmp/kotlin-classes/debug/'
+            //    指定需要被打包成 jar 的文件夹
+            //            include('libs/**')
+            exclude '**/R.class'
+            exclude '**/R$*.class'
+            exclude "**/BuildConfig.class"
+            baseName "${JAR_PREFIX}${project.name}-cache"
+          }
+
+          artifact androidLibraryJar
+          artifact androidSourcesJar
+          artifact androidJavadocsJar
+
+        } else if (project.plugins.hasPlugin('java')) {
+          from components.java
+
+          task sourcesJar(type: Jar, dependsOn: classes) {
+            classifier = 'sources'
+            from sourceSets.main.allSource
+          }
+
+          task javadocsJar(type: Jar, dependsOn: javadoc) {
+            classifier = 'javadoc'
+            from javadoc.destinationDir
+          }
+
+          artifact sourcesJar
+          artifact javadocsJar
+        }
+
+        pom {
+          name = PUBLISH_ARTIFACT_ID
+          description = rootProject.ext.desc
+          url = rootProject.ext.website
+          licenses {
+            license {
+              //协议类型，一般默认Apache License2.0的话不用改：
+              name = rootProject.ext.mavenCentralLicences
+              url = rootProject.ext.mavenCentralLicencesURL
+            }
+          }
+          developers {
+            developer {
+              id = rootProject.ext.mavenCentralUserID
+              name = rootProject.ext.mavenCentralUserName
+              email = rootProject.ext.mavenCentralEmail
+            }
+          }
+          scm {
+            //修改成你的Git地址：
+            connection = rootProject.ext.mavenCentralConnection
+            developerConnection = rootProject.ext.mavenCentralDeveloperConnection
+            //分支地址：
+            url = rootProject.ext.mavenCentralTreeURL
+          }
+        }
+      }
+    }
+    repositories {
+      maven {
+        name = "mavencentral"
+
+        def releasesRepoUrl = getReleaseRepositoryUrl()
+        def snapshotsRepoUrl = getSnapshotRepositoryUrl()
+        url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+        credentials {
+          username ossrhUsername
+          password ossrhPassword
+        }
+      }
+    }
+  }
+  signing {
+    sign publishing.publications
+  }
+}

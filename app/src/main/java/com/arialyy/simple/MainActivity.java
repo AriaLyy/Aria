@@ -38,12 +38,14 @@ import com.arialyy.simple.base.adapter.AbsRVAdapter;
 import com.arialyy.simple.base.adapter.RvItemClickSupport;
 import com.arialyy.simple.core.download.DownloadActivity;
 import com.arialyy.simple.core.download.FtpDownloadActivity;
+import com.arialyy.simple.core.download.SFtpDownloadActivity;
 import com.arialyy.simple.core.download.group.DownloadGroupActivity;
 import com.arialyy.simple.core.download.group.FTPDirDownloadActivity;
 import com.arialyy.simple.core.download.m3u8.M3U8LiveDLoadActivity;
 import com.arialyy.simple.core.download.m3u8.M3U8VodDLoadActivity;
 import com.arialyy.simple.core.upload.FtpUploadActivity;
 import com.arialyy.simple.core.upload.HttpUploadActivity;
+import com.arialyy.simple.core.upload.SFtpUploadActivity;
 import com.arialyy.simple.databinding.ActivityMainBinding;
 import com.arialyy.simple.modlue.CommonModule;
 import com.arialyy.simple.to.NormalTo;
@@ -116,6 +118,14 @@ public class MainActivity extends BaseActivity<ActivityMainBinding> {
                 module.startNextActivity(MainActivity.this, data.get(position),
                     M3U8LiveDLoadActivity.class);
                 break;
+              case 8: // d_sftp
+                module.startNextActivity(MainActivity.this, data.get(position),
+                    SFtpDownloadActivity.class);
+                break;
+              case 9: // u_sftp
+                module.startNextActivity(MainActivity.this, data.get(position),
+                    SFtpUploadActivity.class);
+                break;
             }
           }
         });
@@ -132,7 +142,7 @@ public class MainActivity extends BaseActivity<ActivityMainBinding> {
             T.showShort(MainActivity.this, "没有文件读写权限");
             finish();
           }
-        }, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }, Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE);
       }
     }
   }

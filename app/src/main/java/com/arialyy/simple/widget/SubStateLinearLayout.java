@@ -74,7 +74,7 @@ public class SubStateLinearLayout extends LinearLayout implements View.OnClickLi
     int i = 1;
     for (DownloadEntity entity : datas) {
       TextView view = createView(i - 1, entity);
-      mPosition.put(entity.getDownloadPath(), i);
+      mPosition.put(entity.getFilePath(), i);
       addView(view, i);
       i++;
     }

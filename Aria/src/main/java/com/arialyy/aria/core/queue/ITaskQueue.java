@@ -17,14 +17,14 @@
 package com.arialyy.aria.core.queue;
 
 import com.arialyy.aria.core.download.DGTaskWrapper;
-import com.arialyy.aria.core.download.DownloadGroupTask;
-import com.arialyy.aria.core.download.DownloadTask;
 import com.arialyy.aria.core.download.DTaskWrapper;
-import com.arialyy.aria.core.inf.AbsTask;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
-import com.arialyy.aria.core.inf.ITask;
-import com.arialyy.aria.core.upload.UploadTask;
+import com.arialyy.aria.core.inf.TaskSchedulerType;
+import com.arialyy.aria.core.task.DownloadGroupTask;
+import com.arialyy.aria.core.task.DownloadTask;
+import com.arialyy.aria.core.task.ITask;
+import com.arialyy.aria.core.task.UploadTask;
 import com.arialyy.aria.core.upload.UTaskWrapper;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 
 /**
  * Created by lyy on 2016/8/16. 任务功能接口
@@ -67,6 +67,13 @@ public interface ITaskQueue<TASK extends ITask, TASK_WRAPPER extends AbsTaskWrap
   void startTask(TASK task);
 
   /**
+   * 开始任务
+   *
+   * @param action {@link TaskSchedulerType}
+   */
+  void startTask(TASK task, int action);
+
+  /**
    * 停止任务
    *
    * @param task {@link DownloadTask}、{@link UploadTask}、{@link DownloadGroupTask}
@@ -74,11 +81,18 @@ public interface ITaskQueue<TASK extends ITask, TASK_WRAPPER extends AbsTaskWrap
   void stopTask(TASK task);
 
   /**
-   * 取消下载任务
+   * 取消任务
    *
    * @param task {@link DownloadTask}、{@link UploadTask}、{@link DownloadGroupTask}
    */
   void cancelTask(TASK task);
+
+  /**
+   * 取消任务
+   *
+   * @param action {@link TaskSchedulerType}
+   */
+  void cancelTask(TASK task, int action);
 
   /**
    * 通过key从队列中删除任务

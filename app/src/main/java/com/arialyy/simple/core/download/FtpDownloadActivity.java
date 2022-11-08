@@ -18,37 +18,33 @@ package com.arialyy.simple.core.download;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 import com.arialyy.annotations.Download;
 import com.arialyy.aria.core.Aria;
-import com.arialyy.aria.core.common.ProtocolType;
-import com.arialyy.aria.core.common.controller.ControllerType;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.common.FtpOption;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.inf.IEntity;
+import com.arialyy.aria.core.task.DownloadTask;
+import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
-import com.arialyy.frame.util.show.L;
-import com.arialyy.frame.util.show.T;
 import com.arialyy.simple.R;
 import com.arialyy.simple.base.BaseActivity;
-import com.arialyy.simple.common.DirChooseDialog;
-import com.arialyy.simple.common.ModifyUrlDialog;
-import com.arialyy.simple.databinding.ActivityFtpDownloadBinding;
-import com.arialyy.simple.util.AppUtil;
+import com.arialyy.simple.databinding.ActivitySingleBinding;
+import com.arialyy.simple.widget.ProgressLayout;
 import java.io.File;
-import java.io.IOException;
 
 /**
  * Created by lyy on 2017/7/25.
  * Ftp下载
  */
-public class FtpDownloadActivity extends BaseActivity<ActivityFtpDownloadBinding> {
+public class FtpDownloadActivity extends BaseActivity<ActivitySingleBinding> {
   private String mUrl, mFilePath;
   private FtpDownloadModule mModule;
   private long mTaskId;
-  private String user = "tester", passw = "password";
+  private String user = "lao", passw = "123456";
 
   @Override protected void init(Bundle savedInstanceState) {
     super.init(savedInstanceState);
@@ -63,136 +59,123 @@ public class FtpDownloadActivity extends BaseActivity<ActivityFtpDownloadBinding
           return;
         }
         mTaskId = entity.getId();
-        if (entity.getState() == IEntity.STATE_STOP) {
-          getBinding().setStateStr(getString(R.string.resume));
-        } else if (entity.getState() == IEntity.STATE_RUNNING) {
-          getBinding().setStateStr(getString(R.string.stop));
-        }
-
-        if (entity.getFileSize() != 0) {
-          getBinding().setFileSize(CommonUtil.formatFileSize(entity.getFileSize()));
-          getBinding().setProgress(entity.isComplete() ? 100
-              : (int) (entity.getCurrentProgress() * 100 / entity.getFileSize()));
-        }
-        getBinding().setUrl(entity.getUrl());
-        getBinding().setFilePath(entity.getFilePath());
         mUrl = entity.getUrl();
         mFilePath = entity.getFilePath();
+        getBinding().pl.setInfo(entity);
       }
     });
-    getBinding().setViewModel(this);
-    try {
-      getBinding().codeView.setSource(AppUtil.getHelpCode(this, "FtpDownload.java"));
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
+        mTaskId = Aria.download(this).loadFtp(mUrl)
+            .setFilePath(mFilePath)
+            .ignoreFilePathOccupy()
+            .option(getFtpOption())
+            .create();
+      }
 
-  public void onClick(View view) {
-    switch (view.getId()) {
-      case R.id.start:
+      @Override public void stop(View v, AbsEntity entity) {
+        Aria.download(this).loadFtp(mTaskId).stop();
+      }
 
-        if (mTaskId == -1) {
-          mTaskId = Aria.download(this).loadFtp(mUrl)
-              .setFilePath(mFilePath, true)
-              .option()
-              //.login("lao", "123456")
-              .login(user, passw)
-              .asFtps()
-              .controller(ControllerType.CREATE_CONTROLLER)
-              .create();
-          getBinding().setStateStr(getString(R.string.stop));
-          break;
-        }
-        if (Aria.download(this).load(mTaskId).isRunning()) {
-          getBinding().setStateStr(getString(R.string.resume));
-          Aria.download(this).loadFtp(mTaskId).stop();
-        } else {
-          Aria.download(this)
-              .loadFtp(mTaskId)
-              .option()
-              .login(user, passw)
-              .asFtps()
-              .setProtocol(ProtocolType.SSL)
-              .controller(ControllerType.TASK_CONTROLLER)
-              .resume();
-          getBinding().setStateStr(getString(R.string.stop));
-        }
-        break;
+      @Override public void resume(View v, AbsEntity entity) {
+        Aria.download(this)
+            .loadFtp(mTaskId)
+            .option(getFtpOption())
+            .resume();
+      }
 
-      case R.id.cancel:
+      @Override public void cancel(View v, AbsEntity entity) {
         Aria.download(this).loadFtp(mTaskId).cancel();
-        getBinding().setStateStr(getString(R.string.start));
         mTaskId = -1;
-        break;
+      }
+    });
+  }
+
+  private FtpOption getFtpOption() {
+    FtpOption option = new FtpOption();
+    option.login(user, passw);
+    //option.setServerIdentifier(FtpOption.FTPServerIdentifier.SYST_NT);
+    //option.setConnectionMode(FtpConnectionMode.DATA_CONNECTION_MODE_ACTIVITY);
+    return option;
+  }
+
+  @Download.onWait
+  void onWait(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      Log.d(TAG, "wait ==> " + task.getDownloadEntity().getFileName());
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
-  public void chooseUrl() {
-    ModifyUrlDialog dialog =
-        new ModifyUrlDialog(this, getString(R.string.modify_url_dialog_title), mUrl);
-    dialog.show(getSupportFragmentManager(), "ModifyUrlDialog");
+  @Download.onPre
+  protected void onPre(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
-  public void chooseFilePath() {
-    DirChooseDialog dirChooseDialog = new DirChooseDialog(this);
-    dirChooseDialog.show(getSupportFragmentManager(), "DirChooseDialog");
+  @Download.onTaskStart
+  void taskStart(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      getBinding().pl.setInfo(task.getEntity());
+      ALog.d(TAG, "isComplete = " + task.isComplete() + ", state = " + task.getState());
+    }
   }
 
-  @Download.onPre() protected void onPre(DownloadTask task) {
-    L.d(TAG, "ftp pre");
+  @Download.onTaskRunning
+  protected void running(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      ALog.d(TAG, "isRunning" + "; state = " + task.getEntity().getState());
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
-  @Download.onTaskPre() protected void onTaskPre(DownloadTask task) {
-    L.d(TAG, "ftp task pre");
-    getBinding().setFileSize(task.getConvertFileSize());
+  @Download.onTaskResume
+  void taskResume(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      ALog.d(TAG, "resume");
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
-  @Download.onTaskStart() void taskStart(DownloadTask task) {
-    L.d(TAG, "ftp task create");
+  @Download.onTaskStop
+  void taskStop(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      ALog.d(TAG, "stop");
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
-  @Download.onTaskRunning() protected void running(DownloadTask task) {
-    getBinding().setProgress(task.getPercent());
-    getBinding().setSpeed(task.getConvertSpeed());
+  @Download.onTaskCancel
+  void taskCancel(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      mTaskId = -1;
+      Log.d(TAG, "cancel");
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
-  @Download.onTaskResume() void taskResume(DownloadTask task) {
-    L.d(TAG, "ftp task resume");
+  @Download.onTaskFail
+  void taskFail(DownloadTask task, Exception e) {
+    ALog.d(TAG, "下载失败");
+    Toast.makeText(this, getString(R.string.download_fail), Toast.LENGTH_SHORT)
+        .show();
+    if (task != null && task.getKey().equals(mUrl)) {
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
-  @Download.onTaskStop() void taskStop(DownloadTask task) {
-    L.d(TAG, "ftp task stop");
-    getBinding().setSpeed("");
-  }
-
-  @Download.onTaskCancel() void taskCancel(DownloadTask task) {
-    getBinding().setSpeed("");
-    getBinding().setProgress(0);
-  }
-
-  @Download.onTaskFail() void taskFail(DownloadTask task) {
-    L.d(TAG, "ftp task fail");
-    getBinding().setStateStr(getString(R.string.resume));
-  }
-
-  @Download.onTaskComplete() void taskComplete(DownloadTask task) {
-    getBinding().setSpeed("");
-    getBinding().setProgress(100);
-    Log.d(TAG, "md5 ==> " + CommonUtil.getFileMD5(new File(task.getFilePath())));
-    T.showShort(this, "文件：" + task.getEntity().getFileName() + "，下载完成");
+  @Download.onTaskComplete
+  void taskComplete(DownloadTask task) {
+    if (task.getKey().equals(mUrl)) {
+      Toast.makeText(this, getString(R.string.download_success),
+          Toast.LENGTH_SHORT).show();
+      ALog.d(TAG, "md5: " + CommonUtil.getFileMD5(new File(task.getFilePath())));
+      getBinding().pl.setInfo(task.getEntity());
+    }
   }
 
   @Override protected int setLayoutId() {
-    return R.layout.activity_ftp_download;
-  }
-
-  @Override protected void dataCallback(int result, Object data) {
-    super.dataCallback(result, data);
-    if (result == ModifyUrlDialog.MODIFY_URL_DIALOG_RESULT) {
-      mModule.uploadUrl(this, String.valueOf(data));
-    } else if (result == DirChooseDialog.DIR_CHOOSE_DIALOG_RESULT) {
-      mModule.updateFilePath(this, String.valueOf(data));
-    }
+    return R.layout.activity_single;
   }
 }

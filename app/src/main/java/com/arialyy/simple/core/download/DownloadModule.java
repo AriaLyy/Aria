@@ -71,6 +71,29 @@ public class DownloadModule extends BaseModule {
     return list;
   }
 
+  /**
+   * 创建m3u8下载地址
+   */
+  public List<FileListEntity> createM3u8TestList(){
+    String[] names = new String[]{"m3u8test1.ts", "m3u8test2.ts"};
+    String[] urls = new String[]{
+        "http://qn.shytong.cn/b83137769ff6b555/11b0c9970f9a3fa0.mp4.m3u8",
+        "http://qn.shytong.cn/8f4011f2a31bd347da42b54fe37a7ba8-transcode.m3u8"
+    };
+    List<FileListEntity> list = new ArrayList<>();
+    int i = 0;
+    for (String name : names) {
+      FileListEntity entity = new FileListEntity();
+      entity.name = name;
+      entity.key = urls[i];
+      entity.type = 2;
+      entity.downloadPath = Environment.getExternalStorageDirectory() + "/Download/" + name;
+      list.add(entity);
+      i++;
+    }
+    return list;
+  }
+
   private String[] getStringArray(int array) {
     return getContext().getResources().getStringArray(array);
   }
@@ -91,7 +114,7 @@ public class DownloadModule extends BaseModule {
     FileListEntity entity = new FileListEntity();
     entity.urls = getStringArray(urls);
     entity.names = getStringArray(names);
-    entity.isGroup = true;
+    entity.type = 1;
     entity.name = alias;
     entity.key = CommonUtil.getMd5Code(Arrays.asList(entity.urls));
     entity.downloadPath = Environment.getExternalStorageDirectory() + "/Download/" + alias;
@@ -106,7 +129,7 @@ public class DownloadModule extends BaseModule {
     DownloadEntity entity = new DownloadEntity();
     entity.setFileName(name);
     entity.setUrl(downloadUrl);
-    entity.setDownloadPath(path);
+    entity.setFilePath(path);
     return entity;
   }
 }

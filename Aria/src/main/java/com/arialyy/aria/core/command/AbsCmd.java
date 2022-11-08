@@ -16,7 +16,7 @@
 
 package com.arialyy.aria.core.command;
 
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 import com.arialyy.aria.core.queue.AbsTaskQueue;
 
 /**

@@ -14,6 +14,10 @@
         type="String"
         />
     <variable
+        name="timeLeft"
+        type="String"
+        />
+    <variable
         name="progress"
         type="int"
         />
@@ -64,6 +68,7 @@
         android:layout_below="@+id/progressBar"
         android:orientation="horizontal"
         >
+
       <TextView
           android:id="@+id/speed"
           android:layout_width="wrap_content"
@@ -71,6 +76,16 @@
           android:layout_marginLeft="16dp"
           android:layout_weight="1"
           android:text="@{speed}"
+          android:textColor="@color/black"
+          />
+
+      <TextView
+          android:id="@+id/time_left"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginLeft="16dp"
+          android:layout_weight="1"
+          android:text="@{timeLeft}"
           android:textColor="@color/black"
           />
 

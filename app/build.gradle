@@ -15,6 +15,8 @@ android {
     versionName "1.0"
     multiDexEnabled true
     vectorDrawables.useSupportLibrary = true
+
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
@@ -28,9 +30,14 @@ android {
   }
 
   buildTypes {
+    debug {
+      debuggable true
+      minifyEnabled false //混淆
+    }
     release {
-      minifyEnabled false
-      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+      zipAlignEnabled true
+      minifyEnabled true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
       signingConfig signingConfigs.release
     }
   }
@@ -41,38 +48,48 @@ android {
 
   packagingOptions {
     exclude 'META-INF/services/javax.annotation.processing.Processor'
+    merge 'META-INF/services/com.arialyy.aria.core.inf.IUtil'
   }
 
   lintOptions {
     abortOnError false
   }
-
-  //  sourceSets {
-  //    main.kotlin.srcDirs += 'src/main/kotlin'
-  //    main.java.srcDirs += 'src/main/java'
-  //  }
 }
 
 dependencies {
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   testImplementation 'junit:junit:4.12'
+  androidTestImplementation 'androidx.test:runner:1.2.0'
+  androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.0'
+
   implementation 'androidx.cardview:cardview:1.0.0'
   implementation 'com.google.android.material:material:1.0.0'
-
   implementation "org.jetbrains.kotlin:kotlin-stdlib:${rootProject.ext.kotlin_version}"
-  api project(':Aria')
-  kapt project(':AriaCompiler')
-  //  api 'com.arialyy.aria:aria-core:3.6.4'
-  //  kapt 'com.arialyy.aria:aria-compiler:3.6.4'
-
-  //  compile 'com.arialyy.aria:aria-core:3.3.14'
-  //  annotationProcessor 'com.arialyy.aria:aria-compiler:3.3.14'
   api 'com.github.PhilJay:MPAndroidChart:v3.0.3'
-  implementation project(':AppFrame')
-  debugImplementation 'com.squareup.leakcanary:leakcanary-android:1.5.4'
+  debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.4'
   implementation 'com.github.bumptech.glide:glide:3.7.0'
   implementation 'com.pddstudio:highlightjs-android:1.5.0'
   implementation 'org.greenrobot:eventbus:3.1.1'
+  implementation project(':AppFrame')
+
+  // aria
+  kapt project(':AriaCompiler')
+  implementation project(':Aria')
+  implementation project(':M3U8Component')
+  implementation project(':FtpComponent')
+  implementation project(path: ':AriaAnnotations')
+  implementation project(path: ':SFtpComponent')
+
+
+//    implementation 'com.arialyy.aria:core:3.8.12'
+//    kapt 'com.arialyy.aria:compiler:3.8.12'
+//    implementation 'com.arialyy.aria:ftpComponent:3.8.12' // 如果需要使用ftp，请增加该组件
+//    implementation 'com.arialyy.aria:sftpComponent:3.8.12' // 如果需要使用ftp，请增加该组件
+//    implementation 'com.arialyy.aria:m3u8Component:3.8.12' // 如果需要使用m3u8下载功能，请增加该组件
+
+  debugImplementation 'com.amitshekhar.android:debug-db:1.0.6'
 }
 repositories {
   mavenCentral()

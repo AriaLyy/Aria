@@ -9,13 +9,19 @@
   <string name="cancel">取消</string>
   <string name="modify_url_dialog_title">修改URL</string>
   <string name="stop">停止</string>
+  <string name="stopped">已停止</string>
   <string name="start">开始</string>
+  <string name="waiting">等待中</string>
+  <string name="state_error">任务已失败</string>
   <string name="resume">恢复</string>
   <string name="delete">删除</string>
   <string name="complete">完成</string>
+  <string name="completed">已完成</string>
   <string name="code_simple">代码示例：</string>
   <string name="download_success">下载完成</string>
+  <string name="upload_success">上传完成</string>
   <string name="download_fail">下载失败</string>
+  <string name="upload_fail">上传失败</string>
   <string name="re_start">重新开始</string>
   <string name="choose_current_dir">选择当前文件夹</string>
   <string name="choose_dir">选择文件夹</string>
@@ -32,14 +38,16 @@
   <string name="error_file_name_null">文件名为空</string>
 
   <string-array name="main_items">
-    <item>http 下载</item>
-    <item>http 上传</item>
-    <item>http 组合任务下载</item>
+    <item>HTTP 下载</item>
+    <item>HTTP 上传</item>
+    <item>HTTP 组合任务下载</item>
     <item>FTP 下载</item>
     <item>FTP 文件夹下载</item>
     <item>FTP 文件上传</item>
     <item>M3U8 点播文件下载</item>
     <item>M3U8 直播文件下载</item>
+    <item>SFTP 下载</item>
+    <item>SFTP 上传</item>
   </string-array>
 
   <string-array name="main_items_desc">
@@ -51,6 +59,8 @@
     <item>上传单个文件到服务器</item>
     <item>下载M3U8点播文件</item>
     <item>下载M3U8直播文件</item>
+    <item>SFTP单文件下载</item>
+    <item>SFTP单文件上传</item>
   </string-array>
 
   <string-array name="download_items">
@@ -58,13 +68,14 @@
     <item>多任务下载</item>
     <item>高优先级任务</item>
     <item>kotlin</item>
-    <item>Service中使用</item>
+    <item>多fragment</item>
     <item>组件中使用</item>
   </string-array>
 
   <string-array name="component_items">
     <item>fragment中使用</item>
     <item>dialog中使用</item>
+    <item>dialogFragment中使用</item>
   </string-array>
 
 
@@ -127,8 +138,10 @@
   </string-array>
 
   <string-array name="group_urls_3">
-    <item>https://downs.muzhiwan.com/2019/07/23/com.amazid.me_5d36bade614d9.apk</item>
-    <item>https://downs.muzhiwan.com/2019/07/30/com.counter.terrorist.attack.fps.sniper.fight_5d3fe8f0a7edf.apk</item>
+    <item>http://down.muzhiwan.com/2017/04/05/org.sanguoqy01_58e4993914424.apk</item>
+    <item>http://apk500.bce.baidu-mgame.com/game/67000/67734/20170622040827_oem_5502845.apk?r=1</item>
+<!--    <item>https://downs.muzhiwan.com/2019/07/23/com.amazid.me_5d36bade614d9.apk</item>-->
+<!--    <item>https://downs.muzhiwan.com/2019/07/30/com.counter.terrorist.attack.fps.sniper.fight_5d3fe8f0a7edf.apk</item>-->
   </string-array>
 
   <string-array name="group_url4">

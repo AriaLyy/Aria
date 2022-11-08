@@ -1,10 +1,11 @@
 apply plugin: 'com.novoda.bintray-release'
 publish {
-  artifactId = 'aria-compiler'
+//  artifactId = 'aria-compiler'
+//  uploadName = 'AriaCompiler'
+  artifactId = 'compiler'
+  uploadName = 'Compiler'
   userOrg = rootProject.ext.userOrg
   groupId = rootProject.ext.groupId
-  //  uploadName = rootProject.uploadName
-  uploadName = 'AriaCompiler'
   publishVersion = rootProject.ext.publishVersion
   desc = rootProject.ext.desc
   website = rootProject.ext.website

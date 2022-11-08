@@ -1,7 +1,6 @@
 package com.arialyy.simple.core.test;
 
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import com.arialyy.aria.core.Aria;
 import com.arialyy.aria.core.download.DTaskWrapper;

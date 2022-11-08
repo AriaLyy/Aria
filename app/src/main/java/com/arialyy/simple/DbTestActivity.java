@@ -1,12 +1,11 @@
 package com.arialyy.simple;
 
 import android.os.Bundle;
-
 import android.util.Log;
 import android.view.View;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.download.DTaskWrapper;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.inf.AbsEntity;
 import com.arialyy.aria.orm.DbEntity;
 import com.arialyy.simple.base.BaseActivity;
 import com.arialyy.simple.databinding.ActivityDbTestBinding;
@@ -38,7 +37,7 @@ public class DbTestActivity extends BaseActivity<ActivityDbTestBinding> {
     }
   }
 
-  private void searchAll(){
+  private void searchAll() {
     long startT = System.currentTimeMillis();
     //List<DTaskWrapper> data = DownloadEntity.findRelationData(DownloadEntity.class);
 
@@ -56,7 +55,7 @@ public class DbTestActivity extends BaseActivity<ActivityDbTestBinding> {
       DownloadEntity entity = new DownloadEntity();
       entity.setUrl(url);
       entity.setFileName("ssssssssssssssssss");
-      entity.setDownloadPath(key);
+      entity.setFilePath(key);
 
       DTaskWrapper dte = new DTaskWrapper(entity);
 

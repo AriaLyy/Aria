@@ -1,5 +1,5 @@
 # Aria
-![图标](https://github.com/AriaLyy/DownloadUtil/blob/v_3.0/app/src/main/res/mipmap-hdpi/ic_launcher.png)</br>
+![图标](https://github.com/AriaLyy/DownloadUtil/blob/master/img/ic_launcher.png)</br>
 ## [ENGLISH DOC](https://github.com/AriaLyy/Aria/blob/master/ENGLISH_README.md)</br>
 ## [中文文档](https://aria.laoyuyu.me/aria_doc)
 Aria项目源于工作中遇到的一个文件下载管理的需求，当时被下载折磨的痛不欲生，从那时起便萌生了编写一个简单易用，稳当高效的下载框架，aria经历了1.0到3.0的开发，算是越来越接近当初所制定的目标了。
@@ -12,18 +12,19 @@ Aria有以下特点：
    - 支持下载FTP文件夹
    - 支持HTTP表单上传
    - 支持文件FTP断点续传上传
-   - 支持FTPS断点续传，[see](https://aria.laoyuyu.me/aria_doc/download/ftps.html)
+   - 支持FTPS断点续传，[see](https://aria.laoyuyu.me/aria_doc/api/ftp_params.html#%E4%BA%8C%E3%80%81ftps)
+   - 支持SFTP断点续传，[sftp下载](https://aria.laoyuyu.me/aria_doc/download/sftp_normal.html)，[sftp上传](https://aria.laoyuyu.me/aria_doc/upload/sftp_normal.html)
  + 支持https地址下载
    - 在配置文件中很容易就可以设置CA证书的信息
  + 支持[多线程分块下载](https://aria.laoyuyu.me/aria_doc/start/config.html)，能更有效的发挥机器IO性能
  + 支持300、301、302重定向下载链接下载
- + 支持m3u8协议的文件下载[m3u8下载](https://aria.laoyuyu.me/aria_doc/download/m3u8.html)
+ + 支持m3u8、hls协议的文件下载[m3u8下载](https://aria.laoyuyu.me/aria_doc/download/m3u8.html)
  + 支持m3u8边下边看的下载支持，[点击查看详情](https://aria.laoyuyu.me/aria_doc/download/m3u8_vod.html)
  + 下载支持文件长度动态增加，文件下载初始化时将不再占用过多的内存空间，见[动态长度配置](https://aria.laoyuyu.me/aria_doc/start/config.html#%E4%B8%8B%E8%BD%BD%E5%8A%A8%E6%80%81%E6%96%87%E4%BB%B6%E8%AF%B4%E6%98%8E)
 
 [怎样使用Aria?](#使用)
 
-如果你觉得Aria对你有帮助，您的star和issues将是对我最大支持.`^_^`
+如果你觉得Aria对你有帮助，你的star和issues将是对我最大支持，当然，也非常欢迎你能PR，[PR方法](https://www.zhihu.com/question/21682976/answer/79489643)`^_^`
 
 ## 示例
 * 多任务下载
@@ -43,22 +44,35 @@ Aria有以下特点：
 ![m3u8点播文件边下边看](https://github.com/AriaLyy/Aria/blob/master/img/m3u8VodDownload.gif)
 
 ## 引入库
-[![Core](https://api.bintray.com/packages/arialyy/maven/AriaApi/images/download.svg)](https://bintray.com/arialyy/maven/AriaApi/_latestVersion)
-[![Compiler](https://api.bintray.com/packages/arialyy/maven/AriaCompiler/images/download.svg)](https://bintray.com/arialyy/maven/AriaCompiler/_latestVersion)
+[![license](http://img.shields.io/badge/license-Apache2.0-brightgreen.svg?style=flat)](https://github.com/AriaLyy/Aria/blob/master/LICENSE)
+[![Core](https://img.shields.io/badge/Core-3.8.16-blue)](https://github.com/AriaLyy/Aria)
+[![Compiler](https://img.shields.io/badge/Compiler-3.8.16-blue)](https://github.com/AriaLyy/Aria)
+[![FtpComponent](https://img.shields.io/badge/FtpComponent-3.8.16-orange)](https://github.com/AriaLyy/Aria)
+[![FtpComponent](https://img.shields.io/badge/SFtpComponent-3.8.16-orange)](https://github.com/AriaLyy/Aria)
+[![M3U8Component](https://img.shields.io/badge/M3U8Component-3.8.16-orange)](https://github.com/AriaLyy/Aria)
+
 
 ```java
-compile 'com.arialyy.aria:aria-core:3.6.6'
-annotationProcessor 'com.arialyy.aria:aria-compiler:3.6.6'
-```
-如果出现android support依赖错误，请将 `compile 'com.arialyy.aria:aria-core:<last-version>'`替换为
-```
-api('com.arialyy.aria:aria-core:<last-version>'){
-   exclude group: 'com.android.support'
+repositories {
+  google()
+  mavenCentral()
 }
+
+dependencies {
+  implementation 'me.laoyuyu.aria:core:3.8.16'
+  annotationProcessor 'me.laoyuyu.aria:compiler:3.8.16'
+  implementation 'me.laoyuyu.aria:ftp:3.8.16' # 如果需要使用ftp，请增加该组件
+  implementation 'me.laoyuyu.aria:sftp:3.8.16' # 如果需要使用ftp，请增加该组件
+  implementation 'me.laoyuyu.aria:m3u8:3.8.16' # 如果需要使用m3u8下载功能，请增加该组件
+}
+
 ```
+
 如果你使用的是kotlin，请使用kotlin官方提供的方法配置apt，[kotlin kapt官方配置传送门](https://www.kotlincn.net/docs/reference/kapt.html)
 
 __⚠️注意：3.5.4以下版本升级时，需要更新[配置文件](https://aria.laoyuyu.me/aria_doc/start/config.html)！！__
+
+__⚠️注意：3.8 以上版本已经适配了AndroidX和support库都可以使用
 
 ***
 ## 使用
@@ -126,17 +140,19 @@ protected void onCreate(Bundle savedInstanceState) {
 }
 ```
 
+### [文档地址](https://aria.laoyuyu.me/aria_doc/)
+
+### QQ群：524329160
+
 
 ### 版本日志
- + v_3.6.6
-    - fix bug https://github.com/AriaLyy/Aria/issues/426
-    - fix bug https://github.com/AriaLyy/Aria/issues/429
-    - fix bug https://github.com/AriaLyy/Aria/issues/428
-    - fix bug https://github.com/AriaLyy/Aria/issues/427
-    - fix bug https://github.com/AriaLyy/Aria/issues/431
-    - fix bug https://github.com/AriaLyy/Aria/issues/441
-    - 修复普通下载任务、组合任务共享执行队列、缓存池的问题
-    - 修复组合任务启动失败时，`DownloadGroupEntity`的状态变为执行中的问题
+  + v_3.8.16
+    - 修复单线程下载时，文件已经完成，重复下载回调下载失败的问题
+    - 修复一个重新下载文件时，同名路径文件没有被被删除的问题
+    - fix bug https://github.com/AriaLyy/Aria/issues/807
+    - fix bug https://github.com/AriaLyy/Aria/issues/811
+    - fix bug https://github.com/AriaLyy/Aria/issues/851
+    - 修复组合任务在获取子任务信息的过程中，手动停止或删除，没有回调的问题
 
 [更多版本记录](https://github.com/AriaLyy/Aria/blob/master/DEV_LOG.md)
 
@@ -147,6 +163,7 @@ protected void onCreate(Bundle savedInstanceState) {
 -keep class **$$DownloadListenerProxy{ *; }
 -keep class **$$UploadListenerProxy{ *; }
 -keep class **$$DownloadGroupListenerProxy{ *; }
+-keep class **$$DGSubListenerProxy{ *; }
 -keepclasseswithmembernames class * {
     @Download.* <methods>;
     @Upload.* <methods>;
@@ -155,9 +172,21 @@ protected void onCreate(Bundle savedInstanceState) {
 
 ```
 
+## 感谢
+感谢小伙伴们提供的PR ``^_^`
+[DaveBoy](https://github.com/DaveBoy)
+[liuxiaowei](https://github.com/liuxiaowei)
+[chenfei0928](https://github.com/chenfei0928)
+
 ## 其他
  有任何问题，可以在[issues](https://github.com/AriaLyy/Aria/issues)给我留言反馈。</br>
  在提交问题前，希望你已经查看过[wiki](https://aria.laoyuyu.me/aria_doc/)或搜索过[issues](https://github.com/AriaLyy/Aria/issues)。</br>
+ [我的博客](https://www.laoyuyu.me)
+
+## 捐赠
+ Aria是作业利用业余时间开发的一个项目，如果你喜欢我写的软件，可以考虑给我捐赠以支持我的工作</br>
+ <img src="https://raw.githubusercontent.com/AriaLyy/Aria/master/img/ali_pay.png" width=336 height=336/>
+ <img src="https://raw.githubusercontent.com/AriaLyy/Aria/master/img/wx_pay.png" width=336 height=336/>
 
 ***
 
@@ -177,13 +206,3 @@ License
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-
-
-
-
-
-
-
-
-

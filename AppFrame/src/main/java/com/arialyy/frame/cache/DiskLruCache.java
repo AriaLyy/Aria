@@ -245,7 +245,6 @@ public final class DiskLruCache implements Closeable {
   /**
    * Recursively delete everything in {@code dir}.
    */
-  // TODO: this should specify paths as Strings rather than as Files
   public static void deleteContents(File dir) throws IOException {
     File[] files = dir.listFiles();
     if (files == null) {

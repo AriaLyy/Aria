@@ -16,21 +16,25 @@
 package com.arialyy.aria.core.download;
 
 import android.text.TextUtils;
+import com.arialyy.aria.core.FtpUrlEntity;
 import com.arialyy.aria.core.inf.ICheckEntityUtil;
-import com.arialyy.aria.orm.DbEntity;
+import com.arialyy.aria.core.inf.IOptionConstant;
 import com.arialyy.aria.util.ALog;
+import com.arialyy.aria.util.CheckUtil;
 import java.io.File;
 
 public class CheckFtpDirEntityUtil implements ICheckEntityUtil {
   private final String TAG = "CheckFtpDirEntityUtil";
   private DGTaskWrapper mWrapper;
   private DownloadGroupEntity mEntity;
+  private int action;
 
-  public static CheckFtpDirEntityUtil newInstance(DGTaskWrapper wrapper) {
-    return new CheckFtpDirEntityUtil(wrapper);
+  public static CheckFtpDirEntityUtil newInstance(DGTaskWrapper wrapper, int action) {
+    return new CheckFtpDirEntityUtil(wrapper, action);
   }
 
-  private CheckFtpDirEntityUtil(DGTaskWrapper wrapper) {
+  private CheckFtpDirEntityUtil(DGTaskWrapper wrapper, int action) {
+    this.action = action;
     mWrapper = wrapper;
     mEntity = mWrapper.getEntity();
   }
@@ -41,33 +45,34 @@ public class CheckFtpDirEntityUtil implements ICheckEntityUtil {
    * @return {@code true} 合法
    */
   private boolean checkDirPath() {
-    if (TextUtils.isEmpty(mWrapper.getDirPathTemp())) {
+    String dirPath = mWrapper.getDirPathTemp();
+    if (TextUtils.isEmpty(dirPath)) {
       ALog.e(TAG, "文件夹路径不能为null");
       return false;
-    } else if (!mWrapper.getDirPathTemp().startsWith("/")) {
-      ALog.e(TAG, String.format("文件夹路径【%s】错误", mWrapper.getDirPathTemp()));
+    }
+    if (!dirPath.startsWith("/")) {
+      ALog.e(TAG, String.format("文件夹路径【%s】错误", dirPath));
       return false;
     }
-    File file = new File(mWrapper.getDirPathTemp());
+    File file = new File(dirPath);
     if (file.isFile()) {
-      ALog.e(TAG, String.format("路径【%s】是文件，请设置文件夹路径", mWrapper.getDirPathTemp()));
+      ALog.e(TAG, String.format("路径【%s】是文件，请设置文件夹路径", dirPath));
       return false;
     }
 
-    if ((mEntity.getDirPath() == null || !mEntity.getDirPath().equals(mWrapper.getDirPathTemp()))
-        && DbEntity.checkDataExist(DownloadGroupEntity.class, "dirPath=?",
-        mWrapper.getDirPathTemp())) {
-      ALog.e(TAG, String.format("文件夹路径【%s】已被其它任务占用，请重新设置文件夹路径", mWrapper.getDirPathTemp()));
+    // 检查路径冲突
+    if (mWrapper.isNewTask() && !CheckUtil.checkDGPathConflicts(mWrapper.isIgnoreFilePathOccupy(),
+        dirPath)) {
       return false;
     }
 
     if (TextUtils.isEmpty(mEntity.getDirPath()) || !mEntity.getDirPath()
-        .equals(mWrapper.getDirPathTemp())) {
+        .equals(dirPath)) {
       if (!file.exists()) {
         file.mkdirs();
       }
-      mEntity.setDirPath(mWrapper.getDirPathTemp());
-      ALog.i(TAG, String.format("文件夹路径改变，将更新文件夹路径为：%s", mWrapper.getDirPathTemp()));
+      mEntity.setDirPath(dirPath);
+      ALog.i(TAG, String.format("文件夹路径改变，将更新文件夹路径为：%s", dirPath));
     }
     return true;
   }
@@ -75,7 +80,7 @@ public class CheckFtpDirEntityUtil implements ICheckEntityUtil {
   @Override
   public boolean checkEntity() {
     if (mWrapper.getErrorEvent() != null) {
-      ALog.e(TAG, mWrapper.getErrorEvent().errorMsg);
+      ALog.e(TAG, String.format("任务操作失败，%s", mWrapper.getErrorEvent().errorMsg));
       return false;
     }
 
@@ -83,12 +88,15 @@ public class CheckFtpDirEntityUtil implements ICheckEntityUtil {
     if (b) {
       mEntity.save();
     }
-    if (mWrapper.asFtp().getUrlEntity().isFtps) {
-      if (TextUtils.isEmpty(mWrapper.asFtp().getUrlEntity().storePath)) {
+    FtpUrlEntity urlEntity =
+        (FtpUrlEntity) mWrapper.getOptionParams().getParam(IOptionConstant.ftpUrlEntity);
+    assert urlEntity != null;
+    if (urlEntity.isFtps) {
+      if (TextUtils.isEmpty(urlEntity.idEntity.storePath)) {
         ALog.e(TAG, "证书路径为空");
         return false;
       }
-      if (TextUtils.isEmpty(mWrapper.asFtp().getUrlEntity().keyAlias)) {
+      if (TextUtils.isEmpty(urlEntity.idEntity.keyAlias)) {
         ALog.e(TAG, "证书别名为空");
         return false;
       }

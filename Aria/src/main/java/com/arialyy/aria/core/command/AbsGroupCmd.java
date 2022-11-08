@@ -15,11 +15,11 @@
  */
 package com.arialyy.aria.core.command;
 
+import com.arialyy.aria.core.download.AbsGroupTaskWrapper;
 import com.arialyy.aria.core.download.DGTaskWrapper;
-import com.arialyy.aria.core.inf.AbsGroupTask;
-import com.arialyy.aria.core.inf.AbsGroupTaskWrapper;
-import com.arialyy.aria.core.inf.AbsTask;
-import com.arialyy.aria.core.queue.DownloadGroupTaskQueue;
+import com.arialyy.aria.core.queue.DGroupTaskQueue;
+import com.arialyy.aria.core.task.AbsGroupTask;
+import com.arialyy.aria.core.task.AbsTask;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
 
@@ -39,7 +39,7 @@ public abstract class AbsGroupCmd<T extends AbsGroupTaskWrapper> extends AbsCmd<
     mTaskWrapper = entity;
     TAG = CommonUtil.getClassName(this);
     if (entity instanceof DGTaskWrapper) {
-      mQueue = DownloadGroupTaskQueue.getInstance();
+      mQueue = DGroupTaskQueue.getInstance();
       isDownloadCmd = true;
     }
   }

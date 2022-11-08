@@ -31,23 +31,24 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 import com.arialyy.annotations.Download;
 import com.arialyy.aria.core.Aria;
-import com.arialyy.aria.core.common.controller.ControllerType;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.common.HttpOption;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.inf.IEntity;
-import com.arialyy.aria.core.inf.IHttpFileLenAdapter;
-import com.arialyy.aria.core.scheduler.ISchedulers;
+import com.arialyy.aria.core.download.DownloadTaskListener;
+import com.arialyy.aria.core.download.target.HttpNormalTarget;
+import com.arialyy.aria.core.listener.ISchedulers;
+import com.arialyy.aria.core.processor.IHttpFileLenAdapter;
+import com.arialyy.aria.core.scheduler.NormalTaskListenerInterface;
+import com.arialyy.aria.core.task.DownloadTask;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.util.FileUtil;
 import com.arialyy.frame.util.show.T;
 import com.arialyy.simple.R;
 import com.arialyy.simple.base.BaseActivity;
-import com.arialyy.simple.common.ModifyPathDialog;
-import com.arialyy.simple.common.ModifyUrlDialog;
 import com.arialyy.simple.databinding.ActivitySingleBinding;
-import com.arialyy.simple.util.AppUtil;
+import com.arialyy.simple.widget.ProgressLayout;
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -97,41 +98,51 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
           return;
         }
         mTaskId = entity.getId();
-        if (entity.getState() == IEntity.STATE_STOP) {
-          getBinding().setStateStr(getString(R.string.resume));
-        } else if (entity.getState() == IEntity.STATE_RUNNING) {
-          getBinding().setStateStr(getString(R.string.stop));
-        }
-
-        if (entity.getFileSize() != 0) {
-          getBinding().setFileSize(CommonUtil.formatFileSize(entity.getFileSize()));
-          getBinding().setProgress(entity.isComplete() ? 100
-              : (int) (entity.getCurrentProgress() * 100 / entity.getFileSize()));
-        }
-        getBinding().setUrl(entity.getUrl());
-        getBinding().setFilePath(entity.getFilePath());
         mUrl = entity.getUrl();
         mFilePath = entity.getFilePath();
+        getBinding().pl.setInfo(entity);
       }
     });
-    getBinding().setViewModel(this);
-    try {
-      getBinding().codeView.setSource(AppUtil.getHelpCode(this, "HttpDownload.java"));
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
+        startD();
+      }
 
-  public void chooseUrl() {
-    ModifyUrlDialog dialog =
-        new ModifyUrlDialog(this, getString(R.string.modify_url_dialog_title), mUrl);
-    dialog.show(getSupportFragmentManager(), "ModifyUrlDialog");
-  }
+      @Override public void stop(View v, AbsEntity entity) {
+        Aria.download(this)
+            .load(mTaskId)
+            .stop();
+      }
 
-  public void chooseFilePath() {
-    ModifyPathDialog dialog =
-        new ModifyPathDialog(this, getString(R.string.modify_file_path), mFilePath);
-    dialog.show(getSupportFragmentManager(), "ModifyPathDialog");
+      @Override public void resume(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId)
+            //.updateUrl(mUrl)
+            .resume();
+      }
+
+      @Override public void cancel(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId).cancel(false);
+      //  //1. 删除本地文件目录
+      //  File localDirFile = new File(mFilePath);
+      //  if (localDirFile.exists()) {
+      //    FileUtil.deleteDir(localDirFile.getParentFile());
+      //  }
+      //
+      //  //2. 删除记录
+      //  HttpNormalTarget target = Aria.download(SingleTaskActivity.this).load(mTaskId);
+      //  if (target != null) {
+      //    //            target.cancel();
+      //    target.removeRecord();
+      //  }
+      //
+      //  List<DownloadEntity> notCompleteTask = Aria.download(SingleTaskActivity.this).getAllNotCompleteTask();
+      //  if (notCompleteTask == null){
+      //    Log.d(TAG, "未完成的任务数：0");
+      //    return;
+      //  }
+      //  Log.d(TAG, "未完成的任务数：" + notCompleteTask.size());
+      }
+    });
   }
 
   @Override
@@ -170,93 +181,95 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
     }
     if (speed > -1) {
       msg = item.getTitle().toString();
-      Aria.download(this).setMaxSpeed(speed);
       T.showShort(this, msg);
+      Aria.get(this).getDownloadConfig().setMaxSpeed(speed);
     }
     return true;
   }
 
   @Download.onWait
-  void onWait(DownloadTask task) {
+  public void onWait(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
       Log.d(TAG, "wait ==> " + task.getDownloadEntity().getFileName());
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onPre
-  protected void onPre(DownloadTask task) {
+  public void onPre(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.stop));
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
+  //@Override public void onTaskPre(DownloadTask task) {
+  //
+  //}
+
   @Download.onTaskStart
-  void taskStart(DownloadTask task) {
+  public void onTaskStart(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setFileSize(task.getConvertFileSize());
+      getBinding().pl.setInfo(task.getEntity());
       ALog.d(TAG, "isComplete = " + task.isComplete() + ", state = " + task.getState());
     }
   }
 
   @Download.onTaskRunning
-  protected void running(DownloadTask task) {
+  public void onTaskRunning(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      ALog.d(TAG, "isRunning");
-      //Log.d(TAG, task.getKey());
-      long len = task.getFileSize();
-      if (len == 0) {
-        getBinding().setProgress(0);
-      } else {
-        getBinding().setProgress(task.getPercent());
-      }
-      getBinding().setSpeed(task.getConvertSpeed());
+      //ALog.d(TAG, "isRunning" + "; state = " + task.getEntity().getState());
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
+  //@Override public void onNoSupportBreakPoint(DownloadTask task) {
+  //
+  //}
+
   @Download.onTaskResume
-  void taskResume(DownloadTask task) {
+  public void onTaskResume(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.stop));
+      ALog.d(TAG, "resume");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskStop
-  void taskStop(DownloadTask task) {
+  public void onTaskStop(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.resume));
-      getBinding().setSpeed("");
+      ALog.d(TAG, "stop");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskCancel
-  void taskCancel(DownloadTask task) {
+  public void onTaskCancel(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
       mTaskId = -1;
-      getBinding().setProgress(0);
-      getBinding().setStateStr(getString(R.string.start));
-      getBinding().setSpeed("");
       Log.d(TAG, "cancel");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskFail
-  void taskFail(DownloadTask task, Exception e) {
+  public void onTaskFail(DownloadTask task, Exception e) {
+    ALog.d(TAG, "下载失败");
     Toast.makeText(SingleTaskActivity.this, getString(R.string.download_fail), Toast.LENGTH_SHORT)
         .show();
     if (task != null && task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.start));
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskComplete
-  void taskComplete(DownloadTask task) {
+  public void onTaskComplete(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setProgress(100);
       Toast.makeText(SingleTaskActivity.this, getString(R.string.download_success),
           Toast.LENGTH_SHORT).show();
-      getBinding().setStateStr(getString(R.string.re_start));
-      getBinding().setSpeed("");
-      ALog.d(TAG, "md5: " + CommonUtil.getFileMD5(new File(task.getFilePath())));
+      ALog.d(TAG, "文件md5: e088677570afe2e9f847cc8159b932dd");
+      ALog.d(TAG, "下载完成的文件md5: " + CommonUtil.getFileMD5(new File(task.getFilePath())));
+      getBinding().pl.setInfo(task.getEntity());
+      getBinding().pl.setProgress(100);
     }
   }
 
@@ -265,47 +278,18 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
     return R.layout.activity_single;
   }
 
-  public void onClick(View view) {
-    switch (view.getId()) {
-      case R.id.start:
-        if (mTaskId == -1) {
-          startD();
-          break;
-        }
-        if (Aria.download(this).load(mTaskId).isRunning()) {
-          Aria.download(this).load(mTaskId).stop();
-        } else {
-          Aria.download(this).load(mTaskId)
-              //.updateUrl("http://sdkdown.muzhiwan.com/openfile/2019/07/11/com.netease.syfz.mzw_5d26f8d9cee27.apk")
-              .resume();
-        }
-        break;
-      case R.id.cancel:
-        Aria.download(this).load(mTaskId).cancel(true);
-        break;
-    }
-  }
-
   private void startD() {
+    HttpOption option = new HttpOption();
+    option.useServerFileName(true);
+    option.addHeader("1", "@")
+        .useServerFileName(true)
+        .setFileLenAdapter(new FileLenAdapter());
+    //option.setRequestType(RequestEnum.POST);
     mTaskId = Aria.download(SingleTaskActivity.this)
         .load(mUrl)
-        .useServerFileName(true)
         .setFilePath(mFilePath, true)
-        .setFileLenAdapter(new IHttpFileLenAdapter() {
-          @Override public long handleFileLen(Map<String, List<String>> headers) {
-
-            List<String> sLength = headers.get("Content-Length");
-            if (sLength == null || sLength.isEmpty()) {
-              return -1;
-            }
-            String temp = sLength.get(0);
-
-            return Long.parseLong(temp);
-          }
-        })
-        .option()
-        .addHeader("1", "@")
-        .controller(ControllerType.CREATE_CONTROLLER)
+        .option(option)
+        .ignoreCheckPermissions()
         .create();
   }
 
@@ -319,12 +303,16 @@ public class SingleTaskActivity extends BaseActivity<ActivitySingleBinding> {
     return super.dispatchTouchEvent(ev);
   }
 
-  @Override protected void dataCallback(int result, Object data) {
-    super.dataCallback(result, data);
-    if (result == ModifyUrlDialog.MODIFY_URL_DIALOG_RESULT) {
-      mModule.uploadUrl(this, String.valueOf(data));
-    } else if (result == ModifyPathDialog.MODIFY_PATH_RESULT) {
-      mModule.updateFilePath(this, String.valueOf(data));
+  static class FileLenAdapter implements IHttpFileLenAdapter {
+    @Override public long handleFileLen(Map<String, List<String>> headers) {
+
+      List<String> sLength = headers.get("Content-Length");
+      if (sLength == null || sLength.isEmpty()) {
+        return -1;
+      }
+      String temp = sLength.get(0);
+
+      return Long.parseLong(temp);
     }
   }
 }

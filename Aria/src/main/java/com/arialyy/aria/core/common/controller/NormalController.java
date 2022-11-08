@@ -16,11 +16,12 @@
 package com.arialyy.aria.core.common.controller;
 
 import com.arialyy.aria.core.command.CancelCmd;
+import com.arialyy.aria.core.command.CmdHelper;
 import com.arialyy.aria.core.command.NormalCmdFactory;
+import com.arialyy.aria.core.command.StartCmd;
 import com.arialyy.aria.core.event.EventMsgUtil;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 import com.arialyy.aria.util.ALog;
-import com.arialyy.aria.util.CommonUtil;
 
 /**
  * 启动控制器
@@ -37,9 +38,10 @@ public final class NormalController extends FeatureController implements INormal
    */
   @Override
   public void stop() {
+    setAction(ACTION_STOP);
     if (checkConfig()) {
       EventMsgUtil.getDefault()
-          .post(CommonUtil.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_STOP,
+          .post(CmdHelper.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_STOP,
               checkTaskType()));
     }
   }
@@ -49,10 +51,24 @@ public final class NormalController extends FeatureController implements INormal
    */
   @Override
   public void resume() {
+    resume(false);
+  }
+
+  /**
+   * 正常来说，当执行队列满时，调用恢复任务接口，只能将任务放到缓存队列中。
+   * 如果希望调用恢复接口，马上进入执行队列，需要使用该方法
+   *
+   * @param newStart true 立即将任务恢复到执行队列中
+   */
+  @Override public void resume(boolean newStart) {
+    setAction(ACTION_RESUME);
     if (checkConfig()) {
+      StartCmd cmd =
+          (StartCmd) CmdHelper.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_START,
+              checkTaskType());
+      cmd.setNowStart(newStart);
       EventMsgUtil.getDefault()
-          .post(CommonUtil.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_START,
-              checkTaskType()));
+          .post(cmd);
     }
   }
 
@@ -61,11 +77,7 @@ public final class NormalController extends FeatureController implements INormal
    */
   @Override
   public void cancel() {
-    if (checkConfig()) {
-      EventMsgUtil.getDefault()
-          .post(CommonUtil.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_CANCEL,
-              checkTaskType()));
-    }
+    cancel(false);
   }
 
   /**
@@ -73,13 +85,14 @@ public final class NormalController extends FeatureController implements INormal
    */
   @Override
   public void reTry() {
+    setAction(ACTION_RETRY);
     if (checkConfig()) {
       int taskType = checkTaskType();
       EventMsgUtil.getDefault()
-          .post(CommonUtil.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_STOP, taskType));
+          .post(CmdHelper.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_STOP, taskType));
       EventMsgUtil.getDefault()
           .post(
-              CommonUtil.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_START, taskType));
+              CmdHelper.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_START, taskType));
     }
   }
 
@@ -91,9 +104,10 @@ public final class NormalController extends FeatureController implements INormal
    */
   @Override
   public void cancel(boolean removeFile) {
+    setAction(ACTION_CANCEL);
     if (checkConfig()) {
       CancelCmd cancelCmd =
-          (CancelCmd) CommonUtil.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_CANCEL,
+          (CancelCmd) CmdHelper.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_CANCEL,
               checkTaskType());
       cancelCmd.removeFile = removeFile;
       EventMsgUtil.getDefault().post(cancelCmd);
@@ -104,15 +118,19 @@ public final class NormalController extends FeatureController implements INormal
    * 重新下载
    */
   @Override
-  public void reStart() {
+  public long reStart() {
+    setAction(ACTION_RESTART);
     if (checkConfig()) {
       EventMsgUtil.getDefault()
-          .post(CommonUtil.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_RESTART,
+          .post(CmdHelper.createNormalCmd(getTaskWrapper(), NormalCmdFactory.TASK_RESTART,
               checkTaskType()));
+      return getEntity().getId();
     }
+    return -1;
   }
 
   @Override public void save() {
+    setAction(ACTION_SAVE);
     if (!checkConfig()) {
       ALog.e(TAG, "保存修改失败");
     } else {

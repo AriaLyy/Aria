@@ -15,7 +15,7 @@
  */
 package com.arialyy.aria.core.command;
 
-import com.arialyy.aria.core.inf.AbsGroupTaskWrapper;
+import com.arialyy.aria.core.download.AbsGroupTaskWrapper;
 
 /**
  * Created by AriaL on 2017/6/29.

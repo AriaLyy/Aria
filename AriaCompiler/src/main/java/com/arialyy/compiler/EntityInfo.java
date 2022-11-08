@@ -20,7 +20,7 @@ package com.arialyy.compiler;
  * 实体信息
  */
 enum EntityInfo {
-  NORMAL("com.arialyy.aria.core.inf", "AbsNormalEntity"),
+  NORMAL("com.arialyy.aria.core.common", "AbsNormalEntity"),
   DOWNLOAD("com.arialyy.aria.core.download", "DownloadEntity"),
   UPLOAD("com.arialyy.aria.core.upload", "UploadEntity");
   String pkg, className;

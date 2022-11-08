@@ -15,11 +15,11 @@
  */
 package com.arialyy.aria.core.scheduler;
 
-import com.arialyy.aria.core.AriaManager;
-import com.arialyy.aria.core.inf.AbsEntity;
-import com.arialyy.aria.core.inf.ITask;
+import com.arialyy.aria.core.AriaConfig;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.manager.TaskWrapperManager;
 import com.arialyy.aria.core.queue.ITaskQueue;
+import com.arialyy.aria.core.task.ITask;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
 import java.util.ArrayList;
@@ -42,7 +42,6 @@ class FailureTaskHandler<TASK extends ITask> {
   private TaskSchedulers mSchedulers;
   private final ReentrantLock LOCK = new ReentrantLock();
   private Condition mCondition = LOCK.newCondition();
-  private AriaManager mAriaManager;
 
   static FailureTaskHandler init(TaskSchedulers schedulers) {
     if (INSTANCE == null) {
@@ -57,7 +56,6 @@ class FailureTaskHandler<TASK extends ITask> {
 
   private FailureTaskHandler(TaskSchedulers schedulers) {
     mSchedulers = schedulers;
-    mAriaManager = AriaManager.getInstance();
     new Thread(new Runnable() {
       @Override public void run() {
         while (true) {
@@ -82,35 +80,46 @@ class FailureTaskHandler<TASK extends ITask> {
   }
 
   private void retryTask(final TASK task) {
-    long interval = task.getTaskWrapper().getConfig().getReTryInterval();
-    final int num = task.getTaskWrapper().getConfig().getReTryNum();
-    final ITaskQueue queue = mSchedulers.getQueue(task);
-    mAriaManager.getAriaHandler().postDelayed(new Runnable() {
-      @Override public void run() {
-        AbsEntity entity = task.getTaskWrapper().getEntity();
-        if (entity.getFailNum() <= num) {
-          ALog.d(TAG, String.format("任务【%s】开始重试", task.getTaskName()));
-          queue.reTryStart(task);
-        } else {
-          queue.removeTaskFormQueue(task.getKey());
-          mSchedulers.startNextTask(queue, task.getSchedulerType());
-          TaskWrapperManager.getInstance().removeTaskWrapper(task.getTaskWrapper());
-        }
-        mExeQueue.remove(task);
-        int index = mHashList.indexOf(task.hashCode());
-        if (index != -1) {
-          mHashList.remove(index);
-        }
-        if (LOCK.isLocked()) {
-          try {
-            LOCK.lock();
-            mCondition.signalAll();
-          } finally {
-            LOCK.unlock();
+    final ITaskQueue queue = mSchedulers.getQueue(task.getTaskType());
+    if (task.isNeedRetry()){
+      long interval = task.getTaskWrapper().getConfig().getReTryInterval();
+      final int num = task.getTaskWrapper().getConfig().getReTryNum();
+      AriaConfig.getInstance().getAriaHandler().postDelayed(new Runnable() {
+        @Override public void run() {
+          AbsEntity entity = task.getTaskWrapper().getEntity();
+          if (entity.getFailNum() <= num) {
+            ALog.d(TAG, String.format("任务【%s】开始重试", task.getTaskName()));
+            queue.reTryStart(task);
+          } else {
+            queue.removeTaskFormQueue(task.getKey());
+            mSchedulers.startNextTask(queue, task.getSchedulerType());
+            TaskWrapperManager.getInstance().removeTaskWrapper(task.getTaskWrapper());
           }
+          next(task);
         }
+      }, interval);
+    }else {
+      queue.removeTaskFormQueue(task.getKey());
+      mSchedulers.startNextTask(queue, task.getSchedulerType());
+      TaskWrapperManager.getInstance().removeTaskWrapper(task.getTaskWrapper());
+      next(task);
+    }
+  }
+
+  private void next(TASK task){
+    mExeQueue.remove(task);
+    int index = mHashList.indexOf(task.hashCode());
+    if (index != -1) {
+      mHashList.remove(index);
+    }
+    if (LOCK.isLocked()) {
+      try {
+        LOCK.lock();
+        mCondition.signalAll();
+      } finally {
+        LOCK.unlock();
       }
-    }, interval);
+    }
   }
 
   void offer(TASK task) {

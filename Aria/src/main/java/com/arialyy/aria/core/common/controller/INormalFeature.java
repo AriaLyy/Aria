@@ -31,6 +31,14 @@ public interface INormalFeature {
   void resume();
 
   /**
+   * 正常来说，当执行队列满时，调用恢复任务接口，只能将任务放到缓存队列中。
+   * 如果希望调用恢复接口，马上进入执行队列，需要使用该方法
+   *
+   * @param newStart true 立即将任务恢复到执行队列中
+   */
+  void resume(boolean newStart);
+
+  /**
    * 删除任务
    */
   void cancel();
@@ -51,7 +59,7 @@ public interface INormalFeature {
   /**
    * 重新下载
    */
-  void reStart();
+  long reStart();
 
   /**
    * 保存数据

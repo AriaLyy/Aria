@@ -92,5 +92,6 @@ public class RegularExpression {
   /**
    * IP
    */
-  public static String IP = "\\d+\\.\\d+\\.\\d+\\.\\d+";
+  public static String IP =
+      "([1-9]|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])(\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])){3}";
 }

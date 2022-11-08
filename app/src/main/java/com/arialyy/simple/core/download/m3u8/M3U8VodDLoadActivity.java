@@ -22,22 +22,24 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.SeekBar;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
-import androidx.fragment.app.FragmentTransaction;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 import com.arialyy.annotations.Download;
 import com.arialyy.annotations.M3U8;
 import com.arialyy.aria.core.Aria;
-import com.arialyy.aria.core.common.controller.BuilderController;
-import com.arialyy.aria.core.common.controller.ControllerType;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.common.HttpOption;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.download.m3u8.ITsMergeHandler;
-import com.arialyy.aria.core.download.m3u8.IVodTsUrlConverter;
-import com.arialyy.aria.core.download.m3u8.M3U8Entity;
-import com.arialyy.aria.core.inf.IEntity;
+import com.arialyy.aria.core.download.M3U8Entity;
+import com.arialyy.aria.core.download.m3u8.M3U8VodOption;
+import com.arialyy.aria.core.processor.IBandWidthUrlConverter;
+import com.arialyy.aria.core.processor.IKeyUrlConverter;
+import com.arialyy.aria.core.processor.ITsMergeHandler;
+import com.arialyy.aria.core.processor.IVodTsUrlConverter;
+import com.arialyy.aria.core.task.DownloadTask;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
 import com.arialyy.frame.util.show.T;
@@ -47,6 +49,7 @@ import com.arialyy.simple.common.ModifyPathDialog;
 import com.arialyy.simple.common.ModifyUrlDialog;
 import com.arialyy.simple.databinding.ActivityM3u8VodBinding;
 import com.arialyy.simple.to.PeerIndex;
+import com.arialyy.simple.widget.ProgressLayout;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,28 +77,53 @@ public class M3U8VodDLoadActivity extends BaseActivity<ActivityM3u8VodBinding> {
         if (entity == null) {
           return;
         }
+        if (entity.getM3U8Entity() != null) {
+          getBinding().seekBar.setMax(entity.getM3U8Entity().getPeerNum());
+        }
         mTaskId = entity.getId();
-        if (entity.getState() == IEntity.STATE_STOP) {
-          getBinding().setStateStr(getString(R.string.resume));
-        } else if (entity.getState() == IEntity.STATE_RUNNING) {
-          getBinding().setStateStr(getString(R.string.stop));
-        }
-
-        if (entity.getFileSize() != 0) {
-          getBinding().setFileSize(CommonUtil.formatFileSize(entity.getFileSize()));
-        }
-        getBinding().setProgress(entity.getPercent());
-        getBinding().setUrl(entity.getUrl());
-        getBinding().setFilePath(entity.getFilePath());
         mUrl = entity.getUrl();
         mFilePath = entity.getFilePath();
-        mVideoFragment = new VideoPlayerFragment(0, entity);
-        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
-        ft.add(R.id.video_content, mVideoFragment);
-        ft.commit();
+        getBinding().pl.setInfo(entity);
+        //mVideoFragment = new VideoPlayerFragment(0, entity);
+        //FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+        //ft.add(R.id.video_content, mVideoFragment);
+        //ft.commit();
       }
     });
-    getBinding().setViewModel(this);
+    getBinding().seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+      @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+
+      }
+
+      @Override public void onStartTrackingTouch(SeekBar seekBar) {
+
+      }
+
+      @Override public void onStopTrackingTouch(SeekBar seekBar) {
+        Aria.download(this).load(mTaskId).m3u8VodOption().jumPeerIndex(seekBar.getProgress());
+      }
+    });
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
+        startD();
+      }
+
+      @Override public void stop(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId).stop();
+      }
+
+      @Override public void resume(View v, AbsEntity entity) {
+        Aria.download(this)
+            .load(mTaskId)
+            .m3u8VodOption(getM3U8Option())
+            .resume();
+      }
+
+      @Override public void cancel(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId).cancel(true);
+        mTaskId = -1;
+      }
+    });
   }
 
   public void chooseUrl() {
@@ -122,7 +150,7 @@ public class M3U8VodDLoadActivity extends BaseActivity<ActivityM3u8VodBinding> {
 
   @Subscribe(threadMode = ThreadMode.MAIN)
   public void jumpIndex(PeerIndex index) {
-    Aria.download(this).load(mUrl).asM3U8().asVod().jumPeerIndex(index.index);
+    Aria.download(this).load(mTaskId).m3u8VodOption().jumPeerIndex(index.index);
   }
 
   @Override
@@ -175,7 +203,7 @@ public class M3U8VodDLoadActivity extends BaseActivity<ActivityM3u8VodBinding> {
   @M3U8.onPeerComplete
   void onPeerComplete(String m3u8Url, String peerPath, int peerIndex) {
     //ALog.d(TAG, "peer complete, path: " + peerPath + ", index: " + peerIndex);
-    mVideoFragment.addPlayer(peerIndex, peerPath);
+    //mVideoFragment.addPlayer(peerIndex, peerPath);
   }
 
   @M3U8.onPeerFail
@@ -193,73 +221,71 @@ public class M3U8VodDLoadActivity extends BaseActivity<ActivityM3u8VodBinding> {
   @Download.onPre
   protected void onPre(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.stop));
+      ALog.d(TAG, "pre");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskStart
   void taskStart(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setFileSize(task.getConvertFileSize());
       ALog.d(TAG, "isComplete = " + task.isComplete() + ", state = " + task.getState());
+      getBinding().seekBar.setMax(task.getEntity().getM3U8Entity().getPeerNum());
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskRunning
   protected void running(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      //ALog.d(TAG, "isRunning");
-      getBinding().setProgress(task.getPercent());
-      getBinding().setSpeed(task.getConvertSpeed());
+      ALog.d(TAG,
+          "m3u8 void running, p = " + task.getPercent() + ", speed  = " + task.getConvertSpeed());
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskResume
   void taskResume(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.stop));
+      ALog.d(TAG, "m3u8 vod resume");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskStop
   void taskStop(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.resume));
-      getBinding().setSpeed("");
+      ALog.d(TAG, "stop");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskCancel
   void taskCancel(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setProgress(0);
-      getBinding().setStateStr(getString(R.string.start));
-      getBinding().setSpeed("");
       Log.d(TAG, "cancel");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskFail
   void taskFail(DownloadTask task, Exception e) {
-    if (task.getKey().equals(mUrl)) {
+    if (task != null && task.getKey().equals(mUrl)) {
       Toast.makeText(M3U8VodDLoadActivity.this, getString(R.string.download_fail),
           Toast.LENGTH_SHORT)
           .show();
-      getBinding().setStateStr(getString(R.string.start));
-      getBinding().setSpeed("");
       Log.d(TAG, "fail");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskComplete
   void taskComplete(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setProgress(100);
       Toast.makeText(M3U8VodDLoadActivity.this, getString(R.string.download_success),
           Toast.LENGTH_SHORT).show();
-      getBinding().setStateStr(getString(R.string.re_start));
-      getBinding().setSpeed("");
-      ALog.d(TAG, "md5: " + CommonUtil.getFileMD5(new File(task.getDownloadPath())));
+      ALog.d(TAG, "md5: " + CommonUtil.getFileMD5(new File(task.getFilePath())));
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
@@ -268,91 +294,30 @@ public class M3U8VodDLoadActivity extends BaseActivity<ActivityM3u8VodBinding> {
     return R.layout.activity_m3u8_vod;
   }
 
-  public void onClick(View view) {
-    switch (view.getId()) {
-      case R.id.start:
-        if (mTaskId == -1) {
-          startD();
-          break;
-        }
-        if (Aria.download(this).load(mTaskId).isRunning()) {
-          Aria.download(this).load(mTaskId).stop();
-        } else {
-          Aria.download(this)
-              .load(mTaskId)
-              .asM3U8()
-              //.setBandWidthUrlConverter(new IBandWidthUrlConverter() {
-              //  @Override public String convert(String bandWidthUrl) {
-              //    int index = mUrl.lastIndexOf("/");
-              //    return mUrl.substring(0, index + 1) + bandWidthUrl;
-              //  }
-              //})
-              .setTsUrlConvert(new IVodTsUrlConverter() {
-                @Override public List<String> convert(String m3u8Url, List<String> tsUrls) {
-
-                  Uri uri = Uri.parse(m3u8Url);
-                  String parentUrl = uri.getAuthority() + "://" + uri.getHost();
-                  List<String> newUrls = new ArrayList<>();
-                  for (String url : tsUrls) {
-                    newUrls.add(parentUrl + url);
-                  }
-
-                  return newUrls;
-                }
-              })
-              .controller(ControllerType.TASK_CONTROLLER)
-              .resume();
-        }
-        break;
-      case R.id.cancel:
-        Aria.download(this).load(mTaskId).cancel(true);
-        mTaskId = -1;
-        break;
-    }
-  }
-
   private void startD() {
     mTaskId = Aria.download(M3U8VodDLoadActivity.this)
         .load(mUrl)
-        .useServerFileName(true)
-        .setFilePath(mFilePath, true)
-        .asM3U8()
-        //.setBandWidthUrlConverter(new IBandWidthUrlConverter() {
-        //  @Override public String convert(String bandWidthUrl) {
-        //    int index = mUrl.lastIndexOf("/");
-        //    return mUrl.substring(0, index + 1) + bandWidthUrl;
-        //  }
-        //})
-        .setTsUrlConvert(new IVodTsUrlConverter() {
-          @Override public List<String> convert(String m3u8Url, List<String> tsUrls) {
-            //int index = m3u8Url.lastIndexOf("/");
-            //String parentUrl = m3u8Url.substring(0, index + 1);
-            //List<String> newUrls = new ArrayList<>();
-            //for (String url : tsUrls) {
-            //  newUrls.add(parentUrl + url);
-            //}
-            Uri uri = Uri.parse(m3u8Url);
-            String parentUrl = uri.getScheme() + "://" + uri.getHost();
-            List<String> newUrls = new ArrayList<>();
-            for (String url : tsUrls) {
-              newUrls.add(parentUrl + url);
-            }
-
-            return newUrls;
-          }
-        })
-        .setMergeHandler(new ITsMergeHandler() {
-          public boolean merge(@Nullable M3U8Entity m3U8Entity, List<String> tsPath) {
-            ALog.d(TAG, "合并TS....");
-            return false;
-          }
-        })
-        .generateIndexFile()
-        .controller(ControllerType.CREATE_CONTROLLER)
+        .setFilePath(mFilePath)
+        .ignoreFilePathOccupy()
+        .m3u8VodOption(getM3U8Option())
         .create();
   }
 
-  private Class<BuilderController> c = BuilderController.class;
+  private M3U8VodOption getM3U8Option() {
+    M3U8VodOption option = new M3U8VodOption();
+    //option.setBandWidth(200000);
+        //.generateIndexFile()
+        //.merge(true)
+        //.setVodTsUrlConvert(new VodTsUrlConverter());
+    //.setMergeHandler(new TsMergeHandler());
+    option.setUseDefConvert(true);
+    option.generateIndexFile();
+    //option.setKeyUrlConverter(new KeyUrlConverter());
+    //option.setVodTsUrlConvert(new VodTsUrlConverter());
+    option.setBandWidthUrlConverter(new BandWidthUrlConverter());
+    //option.setUseDefConvert(true);
+    return option;
+  }
 
   @Override protected void dataCallback(int result, Object data) {
     super.dataCallback(result, data);
@@ -360,6 +325,50 @@ public class M3U8VodDLoadActivity extends BaseActivity<ActivityM3u8VodBinding> {
       mModule.uploadUrl(this, String.valueOf(data));
     } else if (result == ModifyPathDialog.MODIFY_PATH_RESULT) {
       mModule.updateFilePath(this, String.valueOf(data));
+    }
+  }
+
+  static class VodTsUrlConverter implements IVodTsUrlConverter {
+    @Override public List<String> convert(String m3u8Url, List<String> tsUrls) {
+      Uri uri = Uri.parse(m3u8Url);
+      //String parentUrl = "http://devimages.apple.com/iphone/samples/bipbop/gear1/";
+      //String parentUrl = "http://youku.cdn7-okzy.com/20200123/16815_fbe419ed/1000k/hls/";
+      //String parentUrl = "http://" + uri.getHost() + "/gear1/";
+      //int index = m3u8Url.lastIndexOf("/");
+      //String parentUrl = m3u8Url.substring(0, index + 1);
+      //String parentUrl = "https://v1.szjal.cn/20190819/Ql6UD1od/";
+      //String parentUrl = "http://" + uri.getHost() + "/";
+      //List<String> newUrls = new ArrayList<>();
+      //for (String url : tsUrls) {
+      //  newUrls.add(parentUrl + url);
+      //}
+
+      //return newUrls;
+      return tsUrls;
+    }
+  }
+
+  static class TsMergeHandler implements ITsMergeHandler {
+    public boolean merge(@Nullable M3U8Entity m3U8Entity, List<String> tsPath) {
+      ALog.d("TsMergeHandler", "合并TS....");
+      return false;
+    }
+  }
+
+  static class BandWidthUrlConverter implements IBandWidthUrlConverter {
+
+
+    @Override public String convert(String m3u8Url, String bandWidthUrl) {
+      int index = m3u8Url.lastIndexOf("/");
+      return m3u8Url.substring(0, index + 1) + bandWidthUrl;
+    }
+  }
+
+  static class KeyUrlConverter implements IKeyUrlConverter {
+
+    @Override public String convert(String m3u8Url, String tsListUrl, String keyUrl) {
+      ALog.d("TAG", "convertUrl....");
+      return null;
     }
   }
 }

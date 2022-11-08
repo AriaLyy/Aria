@@ -1,0 +1,11 @@
+apply plugin: 'com.novoda.bintray-release'
+publish {
+  artifactId = 'sftpComponent'
+  uploadName = 'SFTPComponent'
+  userOrg = rootProject.ext.userOrg
+  groupId = rootProject.ext.groupId
+  publishVersion = rootProject.ext.publishVersion
+  desc = rootProject.ext.desc
+  website = rootProject.ext.website
+  licences = rootProject.ext.licences
+}

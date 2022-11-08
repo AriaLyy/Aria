@@ -32,20 +32,33 @@ public class GroupModule extends BaseModule {
 
   public List<String> getUrls() {
     List<String> urls = new ArrayList<>();
-    String[] str = getContext().getResources().getStringArray(R.array.group_urls_1);
-    Collections.addAll(urls, str);
+    urls.add("http://storage.jd.com/apk/newchannel/jingdongdaojia-lechuang30.apk");
+    urls.add("https://appdownload.alicdn.com/publish/cainiao4android/latest/cainiao4android_1598322688221.apk");
+    urls.add("https://yanxuan-dl.nosdn.127.net/yan/android/yanxuan-aos_out_3547.apk");
     return urls;
   }
-
   List<String> getUrls1() {
     List<String> urls = new ArrayList<>();
     //String[] str = getContext().getResources().getStringArray(R.array.group_urls);
     //Collections.addAll(urls, str);
-    urls.add("https://d.pcs.baidu.com/file/130335545f3f4d9cc38afe709c19af5a?fid=1411168371-250528-1010657263806840&dstime=1531134607&rt=sh&sign=FDtAERVY-DCb740ccc5511e5e8fedcff06b081203-sNCujT7lC42aMcfiHcgqAzYHuw4%3D&expires=8h&chkv=1&chkbd=0&chkpc=et&dp-logid=4401967667009194668&dp-callid=0&r=540192514");
+    urls.add(
+        "https://d.pcs.baidu.com/file/130335545f3f4d9cc38afe709c19af5a?fid=1411168371-250528-1010657263806840&dstime=1531134607&rt=sh&sign=FDtAERVY-DCb740ccc5511e5e8fedcff06b081203-sNCujT7lC42aMcfiHcgqAzYHuw4%3D&expires=8h&chkv=1&chkbd=0&chkpc=et&dp-logid=4401967667009194668&dp-callid=0&r=540192514");
     return urls;
   }
 
   List<String> getSubName() {
+    List<String> names = new ArrayList<>();
+    //String[] str = getContext().getResources().getStringArray(R.array.group_names);
+    //Collections.addAll(names, str);
+    names.add("京东到家.apk");
+    names.add("菜鸟.apk");
+    names.add("网易严选.apk");
+    //names.add("4.png");
+    //names.add("5.png");
+    return names;
+  }
+
+  List<String> getSubName1() {
     List<String> names = new ArrayList<>();
     String[] str = getContext().getResources().getStringArray(R.array.group_names);
     Collections.addAll(names, str);

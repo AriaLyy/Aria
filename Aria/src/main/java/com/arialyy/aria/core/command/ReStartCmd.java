@@ -15,9 +15,9 @@
  */
 package com.arialyy.aria.core.command;
 
-import com.arialyy.aria.core.inf.AbsTask;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
 import com.arialyy.aria.core.inf.TaskSchedulerType;
+import com.arialyy.aria.core.task.AbsTask;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 
 /**
  * 重新开始任务命令
@@ -34,8 +34,8 @@ final class ReStartCmd<T extends AbsTaskWrapper> extends AbsNormalCmd<T> {
       task = createTask();
     }
     if (task != null) {
-      task.cancel(TaskSchedulerType.TYPE_CANCEL_AND_NOT_NOTIFY);
-      task.start(TaskSchedulerType.TYPE_START_AND_RESET_STATE);
+      mQueue.cancelTask(task, TaskSchedulerType.TYPE_CANCEL_AND_NOT_NOTIFY);
+      mQueue.startTask(task, TaskSchedulerType.TYPE_START_AND_RESET_STATE);
     }
   }
 }

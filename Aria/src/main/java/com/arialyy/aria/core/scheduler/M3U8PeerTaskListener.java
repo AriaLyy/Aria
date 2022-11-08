@@ -19,18 +19,11 @@ package com.arialyy.aria.core.scheduler;
  * Created by Aria.Lao on 2019/6/26.
  * m3u8切片事件回调类
  */
-public class M3U8PeerTaskListener implements ISchedulerListener {
+public interface M3U8PeerTaskListener extends TaskInternalListenerInterface {
 
-  public void onPeerStart(final String m3u8Url, final String peerPath, final int peerIndex) {
-  }
+  public void onPeerStart(final String m3u8Url, final String peerPath, final int peerIndex);
 
-  public void onPeerComplete(final String m3u8Url, final String peerPath, final int peerIndex) {
-  }
+  public void onPeerComplete(final String m3u8Url, final String peerPath, final int peerIndex);
 
-  public void onPeerFail(final String m3u8Url, final String peerPath, final int peerIndex) {
-  }
-
-  @Override public void setListener(Object obj) {
-
-  }
+  public void onPeerFail(final String m3u8Url, final String peerPath, final int peerIndex);
 }

@@ -23,7 +23,7 @@ import com.arialyy.aria.core.Aria;
 import com.arialyy.aria.core.common.ftp.FtpInterceptHandler;
 import com.arialyy.aria.core.common.ftp.IFtpUploadInterceptor;
 import com.arialyy.aria.core.upload.UploadEntity;
-import com.arialyy.aria.core.upload.UploadTask;
+import com.arialyy.aria.core.task.UploadTask;
 import com.arialyy.frame.util.FileUtil;
 import com.arialyy.frame.util.show.T;
 import com.arialyy.simple.R;

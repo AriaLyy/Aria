@@ -18,14 +18,14 @@ package com.arialyy.aria.core.command;
 
 import com.arialyy.aria.core.download.DGTaskWrapper;
 import com.arialyy.aria.core.download.DTaskWrapper;
-import com.arialyy.aria.core.inf.AbsTask;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
+import com.arialyy.aria.core.task.AbsTask;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 import com.arialyy.aria.core.inf.IEntity;
-import com.arialyy.aria.core.inf.ITask;
-import com.arialyy.aria.core.queue.DownloadGroupTaskQueue;
-import com.arialyy.aria.core.queue.DownloadTaskQueue;
-import com.arialyy.aria.core.queue.UploadTaskQueue;
-import com.arialyy.aria.core.scheduler.ISchedulers;
+import com.arialyy.aria.core.task.ITask;
+import com.arialyy.aria.core.queue.DGroupTaskQueue;
+import com.arialyy.aria.core.queue.DTaskQueue;
+import com.arialyy.aria.core.queue.UTaskQueue;
+import com.arialyy.aria.core.listener.ISchedulers;
 import com.arialyy.aria.core.upload.UTaskWrapper;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
@@ -54,19 +54,19 @@ public abstract class AbsNormalCmd<T extends AbsTaskWrapper> extends AbsCmd<T> {
         ALog.e(TAG, "任务类型错误，任务类型应该为ICM.TASK_TYPE_DOWNLOAD");
         return;
       }
-      mQueue = DownloadTaskQueue.getInstance();
+      mQueue = DTaskQueue.getInstance();
     } else if (taskType == ITask.DOWNLOAD_GROUP) {
       if (!(entity instanceof DGTaskWrapper)) {
         ALog.e(TAG, "任务类型错误，任务类型应该为ICM.TASK_TYPE_DOWNLOAD_GROUP");
         return;
       }
-      mQueue = DownloadGroupTaskQueue.getInstance();
+      mQueue = DGroupTaskQueue.getInstance();
     } else if (taskType == ITask.UPLOAD) {
       if (!(entity instanceof UTaskWrapper)) {
         ALog.e(TAG, "任务类型错误，任务类型应该为ICM.TASK_TYPE_UPLOAD");
         return;
       }
-      mQueue = UploadTaskQueue.getInstance();
+      mQueue = UTaskQueue.getInstance();
     } else {
       ALog.e(TAG, "任务类型错误，任务类型应该为ICM.TASK_TYPE_DOWNLOAD、TASK_TYPE_DOWNLOAD_GROUP、TASK_TYPE_UPLOAD");
       return;
@@ -157,14 +157,6 @@ public abstract class AbsNormalCmd<T extends AbsTaskWrapper> extends AbsCmd<T> {
     mQueue.resumeTask(task);
   }
 
-  /**
-   * 启动指定任务
-   *
-   * @param task 指定任务
-   */
-  void startTask(AbsTask task) {
-    mQueue.startTask(task);
-  }
 
   /**
    * 从队列中获取任务

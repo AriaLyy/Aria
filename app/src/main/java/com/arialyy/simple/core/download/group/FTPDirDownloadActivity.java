@@ -20,25 +20,27 @@ import android.os.Environment;
 import android.view.View;
 import com.arialyy.annotations.DownloadGroup;
 import com.arialyy.aria.core.Aria;
-import com.arialyy.aria.core.common.controller.ControllerType;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.common.FtpOption;
 import com.arialyy.aria.core.download.DownloadGroupEntity;
-import com.arialyy.aria.core.download.DownloadGroupTask;
-import com.arialyy.aria.core.inf.IEntity;
-import com.arialyy.frame.util.show.L;
+import com.arialyy.aria.core.task.DownloadGroupTask;
+import com.arialyy.aria.util.ALog;
 import com.arialyy.frame.util.show.T;
 import com.arialyy.simple.R;
 import com.arialyy.simple.base.BaseActivity;
 import com.arialyy.simple.databinding.ActivityDownloadGroupBinding;
+import com.arialyy.simple.widget.ProgressLayout;
 import com.arialyy.simple.widget.SubStateLinearLayout;
 
 /**
  * Created by lyy on 2017/7/6.
  */
 public class FTPDirDownloadActivity extends BaseActivity<ActivityDownloadGroupBinding> {
-  private static final String dir = "ftp://9.9.9.205:2121/upload/测试";
+  private static final String dir = "ftp://192.168.0.104:2121/aab/你好";
 
   private SubStateLinearLayout mChildList;
   private long mTaskId = -1;
+  private String user = "lao", pwd = "123456";
 
   @Override protected void init(Bundle savedInstanceState) {
     super.init(savedInstanceState);
@@ -49,102 +51,97 @@ public class FTPDirDownloadActivity extends BaseActivity<ActivityDownloadGroupBi
     if (entity != null) {
       mTaskId = entity.getId();
       mChildList.addData(entity.getSubEntities());
-      getBinding().setFileSize(entity.getConvertFileSize());
-      if (entity.getState() == IEntity.STATE_RUNNING) {
-        getBinding().setStateStr(getString(R.string.stop));
-      } else {
-        getBinding().setStateStr(getString(R.string.start));
-      }
-      if (entity.getFileSize() == 0) {
-        getBinding().setProgress(0);
-      } else {
-        getBinding().setProgress(entity.isComplete() ? 100
-            : (int) (entity.getCurrentProgress() * 100 / entity.getFileSize()));
-      }
+    }else {
+      entity = new DownloadGroupEntity();
     }
+    getBinding().pl.setInfo(entity);
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
+        mTaskId = Aria.download(this)
+            .loadFtpDir(dir)
+            .setDirPath(
+                Environment.getExternalStorageDirectory().getPath() + "/Download/ftp_dir")
+            .setGroupAlias("ftp文件夹下载")
+            .option(getFtpOption())
+            .ignoreFilePathOccupy()
+            .create();
+      }
+
+      @Override public void stop(View v, AbsEntity entity) {
+        Aria.download(this).loadFtpDir(mTaskId).stop();
+      }
+
+      @Override public void resume(View v, AbsEntity entity) {
+        Aria.download(this)
+            .loadFtpDir(mTaskId)
+            .option(getFtpOption())
+            .resume();
+      }
+
+      @Override public void cancel(View v, AbsEntity entity) {
+        Aria.download(this).loadFtpDir(mTaskId).cancel();
+        mTaskId = -1;
+      }
+    });
   }
 
   @Override protected int setLayoutId() {
     return R.layout.activity_download_group;
   }
 
-  public void onClick(View view) {
-    switch (view.getId()) {
-      case R.id.start:
-        if (mTaskId == -1) {
-          mTaskId = Aria.download(this)
-              .loadFtpDir(dir)
-              .setDirPath(
-                  Environment.getExternalStorageDirectory().getPath() + "/Download/ftp_dir")
-              .setGroupAlias("ftp文件夹下载")
-              .option()
-              .login("8L8e", "8guD")
-              .controller(ControllerType.CREATE_CONTROLLER)
-              .create();
-          getBinding().setStateStr(getString(R.string.stop));
-          break;
-        }
-        if (Aria.download(this).loadFtpDir(mTaskId).isRunning()) {
-          Aria.download(this).loadFtpDir(mTaskId).stop();
-          getBinding().setStateStr(getString(R.string.resume));
-        } else {
-          Aria.download(this)
-              .loadFtpDir(mTaskId)
-              .option()
-              .login("8L8e", "8guD")
-              .controller(ControllerType.TASK_CONTROLLER)
-              .resume();
-          getBinding().setStateStr(getString(R.string.stop));
-        }
-        break;
-      case R.id.cancel:
-        Aria.download(this).loadFtpDir(mTaskId).cancel();
-        mTaskId = -1;
-        break;
-    }
+  private FtpOption getFtpOption() {
+    FtpOption option = new FtpOption();
+    option.login(user, pwd);
+    return option;
   }
 
-  @DownloadGroup.onPre() protected void onPre(DownloadGroupTask task) {
-    L.d(TAG, "group pre");
+  @DownloadGroup.onPre protected void onPre(DownloadGroupTask task) {
+    ALog.d(TAG, "ftp dir pre");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
-  @DownloadGroup.onTaskPre() protected void onTaskPre(DownloadGroupTask task) {
+  @DownloadGroup.onTaskPre protected void onTaskPre(DownloadGroupTask task) {
+    ALog.d(TAG, "ftp dir task pre");
     if (mChildList.getSubData().size() <= 0) {
       mChildList.addData(task.getEntity().getSubEntities());
     }
-    getBinding().setFileSize(task.getConvertFileSize());
+    getBinding().pl.setInfo(task.getEntity());
   }
 
-  @DownloadGroup.onTaskStart() void taskStart(DownloadGroupTask task) {
+  @DownloadGroup.onTaskStart void taskStart(DownloadGroupTask task) {
+    ALog.d(TAG, "ftp dir start");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
-  @DownloadGroup.onTaskRunning() protected void running(DownloadGroupTask task) {
-    getBinding().setProgress(task.getPercent());
-    getBinding().setSpeed(task.getConvertSpeed());
+  @DownloadGroup.onTaskRunning protected void running(DownloadGroupTask task) {
+    ALog.d(TAG, "ftp dir running, p = " + task.getPercent());
+    getBinding().pl.setInfo(task.getEntity());
     mChildList.updateChildProgress(task.getEntity().getSubEntities());
   }
 
-  @DownloadGroup.onTaskResume() void taskResume(DownloadGroupTask task) {
+  @DownloadGroup.onTaskResume void taskResume(DownloadGroupTask task) {
+    ALog.d(TAG, "ftp dir resume");
   }
 
-  @DownloadGroup.onTaskStop() void taskStop(DownloadGroupTask task) {
-    getBinding().setSpeed("");
+  @DownloadGroup.onTaskStop void taskStop(DownloadGroupTask task) {
+    ALog.d(TAG, "ftp dir stop");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
-  @DownloadGroup.onTaskCancel() void taskCancel(DownloadGroupTask task) {
-    getBinding().setSpeed("");
-    getBinding().setProgress(0);
-    getBinding().setStateStr(getString(R.string.start));
+  @DownloadGroup.onTaskCancel void taskCancel(DownloadGroupTask task) {
+    ALog.d(TAG, "ftp dir cancel");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
-  @DownloadGroup.onTaskFail() void taskFail(DownloadGroupTask task) {
-    L.d(TAG, "group task fail");
+  @DownloadGroup.onTaskFail void taskFail(DownloadGroupTask task) {
+    ALog.d(TAG, "group task fail");
+    getBinding().pl.setInfo(task.getEntity());
   }
 
-  @DownloadGroup.onTaskComplete() void taskComplete(DownloadGroupTask task) {
-    getBinding().setProgress(100);
+  @DownloadGroup.onTaskComplete void taskComplete(DownloadGroupTask task) {
     mChildList.updateChildProgress(task.getEntity().getSubEntities());
+    getBinding().pl.setInfo(task.getEntity());
     T.showShort(this, "任务组下载完成");
-    L.d(TAG, "任务组下载完成");
+    ALog.d(TAG, "任务组下载完成");
   }
 }

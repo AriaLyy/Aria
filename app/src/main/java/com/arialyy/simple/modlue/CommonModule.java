@@ -48,7 +48,8 @@ public class CommonModule extends BaseViewModule {
     String[] titles = context.getResources().getStringArray(R.array.component_items);
     int[] icons = new int[] {
         R.drawable.ic_fragment,
-        R.drawable.ic_dialog
+        R.drawable.ic_dialog,
+        R.drawable.ic_fragment
     };
     int i = 0;
     for (String title : titles) {
@@ -103,7 +104,9 @@ public class CommonModule extends BaseViewModule {
         R.drawable.ic_ftp_dir,
         R.drawable.ic_ftp,
         R.drawable.ic_ts,
-        R.drawable.ic_live
+        R.drawable.ic_live,
+        R.drawable.ic_sftp,
+        R.drawable.ic_sftp
     };
     int i = 0;
     for (String title : titles) {

@@ -16,8 +16,8 @@
 
 package com.arialyy.aria.core.queue.pool;
 
-import com.arialyy.aria.core.inf.AbsEntity;
-import com.arialyy.aria.core.inf.AbsTask;
+import com.arialyy.aria.core.common.AbsEntity;
+import com.arialyy.aria.core.task.AbsTask;
 
 /**
  * Created by lyy on 2016/8/14. 任务池

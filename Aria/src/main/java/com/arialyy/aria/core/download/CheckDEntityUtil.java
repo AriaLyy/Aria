@@ -16,14 +16,16 @@
 package com.arialyy.aria.core.download;
 
 import android.text.TextUtils;
-import com.arialyy.aria.core.common.RecordHandler;
-import com.arialyy.aria.core.download.m3u8.M3U8Entity;
+import com.arialyy.aria.core.common.controller.FeatureController;
 import com.arialyy.aria.core.inf.ICheckEntityUtil;
+import com.arialyy.aria.core.inf.IOptionConstant;
 import com.arialyy.aria.core.inf.ITargetHandler;
-import com.arialyy.aria.core.inf.ITaskWrapper;
+import com.arialyy.aria.core.wrapper.ITaskWrapper;
 import com.arialyy.aria.orm.DbEntity;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CheckUtil;
+import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.util.FileUtil;
 import com.arialyy.aria.util.RecordUtil;
 import java.io.File;
 
@@ -31,15 +33,17 @@ import java.io.File;
  * 检查下载任务实体
  */
 public class CheckDEntityUtil implements ICheckEntityUtil {
-  private final String TAG = "CheckDLoadEntity";
+  private final String TAG = CommonUtil.getClassName(getClass());
   private DTaskWrapper mWrapper;
   private DownloadEntity mEntity;
+  private int action;
 
-  public static CheckDEntityUtil newInstance(DTaskWrapper wrapper) {
-    return new CheckDEntityUtil(wrapper);
+  public static CheckDEntityUtil newInstance(DTaskWrapper wrapper, int action) {
+    return new CheckDEntityUtil(wrapper, action);
   }
 
-  private CheckDEntityUtil(DTaskWrapper wrapper) {
+  private CheckDEntityUtil(DTaskWrapper wrapper, int action) {
+    this.action = action;
     mWrapper = wrapper;
     mEntity = mWrapper.getEntity();
   }
@@ -47,11 +51,11 @@ public class CheckDEntityUtil implements ICheckEntityUtil {
   @Override
   public boolean checkEntity() {
     if (mWrapper.getErrorEvent() != null) {
-      ALog.e(TAG, mWrapper.getErrorEvent().errorMsg);
+      ALog.e(TAG, String.format("任务操作失败，%s", mWrapper.getErrorEvent().errorMsg));
       return false;
     }
 
-    boolean b = checkFtps() && checkUrl() && checkFilePath();
+    boolean b = checkUrl() && checkFilePath();
     if (b) {
       mEntity.save();
     }
@@ -64,36 +68,39 @@ public class CheckDEntityUtil implements ICheckEntityUtil {
 
   private void handleM3U8() {
     File file = new File(mWrapper.getTempFilePath());
-    // 缓存文件夹格式：问文件夹/.文件名_码率
-    String cacheDir = String.format("%s/.%s_%s", file.getParent(), file.getName(),
-        mWrapper.asM3U8().getBandWidth());
-    mWrapper.asM3U8().setCacheDir(cacheDir);
+    Object bw = mWrapper.getM3U8Params().getParam(IOptionConstant.bandWidth);
+    int bandWidth = bw == null ? 0 : (int) bw;
+    String cacheDir = FileUtil.getTsCacheDir(file.getPath(), bandWidth);
+
+    mWrapper.getM3U8Params().setParams(IOptionConstant.cacheDir, cacheDir);
     M3U8Entity m3U8Entity = mEntity.getM3U8Entity();
+
     if (m3U8Entity == null) {
       m3U8Entity = new M3U8Entity();
       m3U8Entity.setFilePath(mEntity.getFilePath());
       m3U8Entity.setPeerIndex(0);
       m3U8Entity.setCacheDir(cacheDir);
-      m3U8Entity.setGenerateIndexFile(mWrapper.asM3U8().isGenerateIndexFileTemp());
       m3U8Entity.insert();
     } else {
-      m3U8Entity.setGenerateIndexFile(mWrapper.asM3U8().isGenerateIndexFileTemp());
       m3U8Entity.update();
     }
-    if (mWrapper.getRequestType() == ITaskWrapper.M3U8_VOD) {
+    if (mWrapper.getRequestType() == ITaskWrapper.M3U8_VOD
+        && action == FeatureController.ACTION_CREATE) {
       if (mEntity.getFileSize() == 0) {
         ALog.w(TAG,
             "由于m3u8协议的特殊性质，无法有效快速获取到正确到文件长度，如果你需要显示文件中长度，你需要自行设置文件长度：.asM3U8().asVod().setFileSize(xxx)");
       }
-    } else if (mWrapper.getRequestType() == ITaskWrapper.M3U8_LIVE) {
+    } else if (mWrapper.getRequestType() == ITaskWrapper.M3U8_LIVE
+        && action != FeatureController.ACTION_CANCEL) {
       if (file.exists()) {
         ALog.w(TAG, "对于直播来说，每次下载都是一个新文件，所以你需要设置新都文件路径，否则Aria框架将会覆盖已下载的文件");
         file.delete();
       }
     }
 
-    if (mWrapper.asM3U8().getBandWidthUrlConverter() != null
-        && mWrapper.asM3U8().getBandWidth() == 0) {
+    if (action != FeatureController.ACTION_CANCEL
+        && mWrapper.getM3U8Params().getHandler(IOptionConstant.bandWidthUrlConverter) != null
+        && bandWidth == 0) {
       ALog.w(TAG, "你已经设置了码率url转换器，但是没有设置码率，Aria框架将采用第一个获取到的码率");
     }
   }
@@ -103,7 +110,12 @@ public class CheckDEntityUtil implements ICheckEntityUtil {
     if (TextUtils.isEmpty(filePath)) {
       ALog.e(TAG, "下载失败，文件保存路径为null");
       return false;
-    } else if (!filePath.startsWith("/")) {
+    }
+    if (!FileUtil.canWrite(new File(filePath).getParent())){
+      ALog.e(TAG, String.format("路径【%s】不可写", filePath));
+      return false;
+    }
+    if (!filePath.startsWith("/")) {
       ALog.e(TAG, String.format("下载失败，文件保存路径【%s】错误", filePath));
       return false;
     }
@@ -129,19 +141,22 @@ public class CheckDEntityUtil implements ICheckEntityUtil {
 
   /**
    * 检查路径冲突
+   * @return true 路径没有冲突
    */
   private boolean checkPathConflicts(String filePath) {
+    DownloadEntity de = DbEntity.findFirst(DownloadEntity.class, "downloadPath=?", filePath);
+    if (de != null && de.getUrl().equals(mEntity.getUrl())){
+      mEntity.rowID = de.rowID;
+      mEntity.setFilePath(filePath);
+      mEntity.setFileName(new File(filePath).getName());
+      return true;
+    }
     //设置文件保存路径，如果新文件路径和旧文件路径不同，则修改路径
     if (!filePath.equals(mEntity.getFilePath())) {
       // 检查路径冲突
-      if (DbEntity.checkDataExist(DownloadEntity.class, "downloadPath=?", filePath)) {
-        if (!mWrapper.isForceDownload()) {
-          ALog.e(TAG, String.format("下载失败，保存路径【%s】已经被其它任务占用，请设置其它保存路径", filePath));
-          return false;
-        } else {
-          ALog.w(TAG, String.format("保存路径【%s】已经被其它任务占用，当前任务将覆盖该路径的文件", filePath));
-          RecordUtil.delTaskRecord(filePath, RecordHandler.TYPE_DOWNLOAD);
-        }
+      if (!CheckUtil.checkDPathConflicts(mWrapper.isIgnoreFilePathOccupy(), filePath,
+          mWrapper.getRequestType())) {
+        return false;
       }
 
       File newFile = new File(filePath);
@@ -149,19 +164,19 @@ public class CheckDEntityUtil implements ICheckEntityUtil {
       mEntity.setFileName(newFile.getName());
 
       // 如过使用Content-Disposition中的文件名，将不会执行重命名工作
-      if (mWrapper.asHttp().isUseServerFileName()
-          || mWrapper.getRequestType() == ITaskWrapper.M3U8_LIVE) {
+      Object usf = mWrapper.getOptionParams().getParam(IOptionConstant.useServerFileName);
+      if ((usf != null && (boolean) usf) || mWrapper.getRequestType() == ITaskWrapper.M3U8_LIVE) {
         return true;
       }
       if (!TextUtils.isEmpty(mEntity.getFilePath())) {
         File oldFile = new File(mEntity.getFilePath());
         if (oldFile.exists()) {
           // 处理普通任务的重命名
-          RecordUtil.modifyTaskRecord(oldFile.getPath(), newFile.getPath());
+          RecordUtil.modifyTaskRecord(oldFile.getPath(), newFile.getPath(), mEntity.getTaskType());
           ALog.i(TAG, String.format("将任务重命名为：%s", newFile.getName()));
         } else if (RecordUtil.blockTaskExists(oldFile.getPath())) {
           // 处理分块任务的重命名
-          RecordUtil.modifyTaskRecord(oldFile.getPath(), newFile.getPath());
+          RecordUtil.modifyTaskRecord(oldFile.getPath(), newFile.getPath(), mEntity.getTaskType());
           ALog.i(TAG, String.format("将分块任务重命名为：%s", newFile.getName()));
         }
       }
@@ -174,7 +189,7 @@ public class CheckDEntityUtil implements ICheckEntityUtil {
     if (TextUtils.isEmpty(url)) {
       ALog.e(TAG, "下载失败，url为null");
       return false;
-    } else if (!CheckUtil.checkUrlNotThrow(url)) {
+    } else if (!CheckUtil.checkUrl(url)) {
       ALog.e(TAG, "下载失败，url【" + url + "】错误");
       return false;
     }
@@ -186,18 +201,6 @@ public class CheckDEntityUtil implements ICheckEntityUtil {
     if (!TextUtils.isEmpty(mWrapper.getTempUrl())) {
       mEntity.setUrl(mWrapper.getTempUrl());
     }
-    return true;
-  }
-
-  private boolean checkFtps() {
-    //if (mWrapper.getRequestType() == ITaskWrapper.D_FTP && mWrapper.asFtp()
-    //    .getUrlEntity().isFtps) {
-    //  String ftpUrl = mEntity.getUrl();
-    //  if (!ftpUrl.startsWith("ftps") && !ftpUrl.startsWith("sftp")) {
-    //    ALog.e(TAG, String.format("地址【%s】错误，ftps地址开头必须是：ftps或sftp", ftpUrl));
-    //    return false;
-    //  }
-    //}
     return true;
   }
 }

@@ -26,11 +26,14 @@ import androidx.annotation.Nullable;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 import com.arialyy.annotations.Download;
+import com.arialyy.annotations.M3U8;
 import com.arialyy.aria.core.Aria;
-import com.arialyy.aria.core.common.controller.ControllerType;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.download.m3u8.ILiveTsUrlConverter;
+import com.arialyy.aria.core.download.m3u8.M3U8LiveOption;
+import com.arialyy.aria.core.processor.IBandWidthUrlConverter;
+import com.arialyy.aria.core.processor.ILiveTsUrlConverter;
+import com.arialyy.aria.core.task.DownloadTask;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
 import com.arialyy.frame.util.show.T;
@@ -39,7 +42,7 @@ import com.arialyy.simple.base.BaseActivity;
 import com.arialyy.simple.common.ModifyPathDialog;
 import com.arialyy.simple.common.ModifyUrlDialog;
 import com.arialyy.simple.databinding.ActivityM3u8LiveBinding;
-import com.arialyy.simple.util.AppUtil;
+import com.arialyy.simple.widget.ProgressLayout;
 import java.io.File;
 
 public class M3U8LiveDLoadActivity extends BaseActivity<ActivityM3u8LiveBinding> {
@@ -47,7 +50,7 @@ public class M3U8LiveDLoadActivity extends BaseActivity<ActivityM3u8LiveBinding>
   private String mUrl;
   private String mFilePath;
   private M3U8LiveModule mModule;
-  private DownloadEntity mEntity;
+  private long mTaskId;
 
   @Override
   protected void init(Bundle savedInstanceState) {
@@ -61,27 +64,30 @@ public class M3U8LiveDLoadActivity extends BaseActivity<ActivityM3u8LiveBinding>
         if (entity == null) {
           return;
         }
-        mEntity = entity;
-        getBinding().setStateStr(getString(R.string.start));
-        getBinding().setUrl(entity.getUrl());
-        getBinding().setFilePath(entity.getFilePath());
+        mTaskId = entity.getId();
         mUrl = entity.getUrl();
         mFilePath = entity.getFilePath();
+        getBinding().pl.setInfo(entity);
       }
     });
-    getBinding().setViewModel(this);
-  }
+    getBinding().pl.setBtListener(new ProgressLayout.OnProgressLayoutBtListener() {
+      @Override public void create(View v, AbsEntity entity) {
+        startD();
+      }
 
-  public void chooseUrl() {
-    ModifyUrlDialog dialog =
-        new ModifyUrlDialog(this, getString(R.string.modify_url_dialog_title), mUrl);
-    dialog.show(getSupportFragmentManager(), "ModifyUrlDialog");
-  }
+      @Override public void stop(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId).stop();
+      }
 
-  public void chooseFilePath() {
-    ModifyPathDialog dialog =
-        new ModifyPathDialog(this, getString(R.string.modify_file_path), mFilePath);
-    dialog.show(getSupportFragmentManager(), "ModifyPathDialog");
+      @Override public void resume(View v, AbsEntity entity) {
+        ALog.d(TAG, "m3u8 live 不支持恢复");
+      }
+
+      @Override public void cancel(View v, AbsEntity entity) {
+        Aria.download(this).load(mTaskId).cancel(true);
+        mTaskId = -1;
+      }
+    });
   }
 
   @Override
@@ -126,6 +132,22 @@ public class M3U8LiveDLoadActivity extends BaseActivity<ActivityM3u8LiveBinding>
     return true;
   }
 
+  @M3U8.onPeerStart
+  void onPeerStart(String m3u8Url, String peerPath, int peerIndex) {
+    //ALog.d(TAG, "peer create, path: " + peerPath + ", index: " + peerIndex);
+  }
+
+  @M3U8.onPeerComplete
+  void onPeerComplete(String m3u8Url, String peerPath, int peerIndex) {
+    //ALog.d(TAG, "peer complete, path: " + peerPath + ", index: " + peerIndex);
+    //mVideoFragment.addPlayer(peerIndex, peerPath);
+  }
+
+  @M3U8.onPeerFail
+  void onPeerFail(String m3u8Url, String peerPath, int peerIndex) {
+    //ALog.d(TAG, "peer fail, path: " + peerPath + ", index: " + peerIndex);
+  }
+
   @Download.onWait
   void onWait(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
@@ -136,71 +158,70 @@ public class M3U8LiveDLoadActivity extends BaseActivity<ActivityM3u8LiveBinding>
   @Download.onPre
   protected void onPre(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.stop));
+      ALog.d(TAG, "pre");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskStart
   void taskStart(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setFileSize(task.getConvertFileSize());
       ALog.d(TAG, "isComplete = " + task.isComplete() + ", state = " + task.getState());
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskRunning
   protected void running(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      ALog.d(TAG, "isRunning");
-      getBinding().setProgress(task.getPercent());
-      getBinding().setSpeed(task.getConvertSpeed());
+      ALog.d(TAG,
+          "m3u8 void running, p = " + task.getPercent() + ", speed  = " + task.getConvertSpeed());
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskResume
   void taskResume(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.stop));
+      ALog.d(TAG, "m3u8 vod resume");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskStop
   void taskStop(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setStateStr(getString(R.string.resume));
-      getBinding().setSpeed("");
+      ALog.d(TAG, "stop");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskCancel
   void taskCancel(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setProgress(0);
-      getBinding().setStateStr(getString(R.string.start));
-      getBinding().setSpeed("");
       Log.d(TAG, "cancel");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskFail
   void taskFail(DownloadTask task, Exception e) {
     if (task.getKey().equals(mUrl)) {
-      Toast.makeText(M3U8LiveDLoadActivity.this, getString(R.string.download_fail),
+      Toast.makeText(this, getString(R.string.download_fail),
           Toast.LENGTH_SHORT)
           .show();
-      getBinding().setStateStr(getString(R.string.start));
+      Log.d(TAG, "fail");
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
   @Download.onTaskComplete
   void taskComplete(DownloadTask task) {
     if (task.getKey().equals(mUrl)) {
-      getBinding().setProgress(100);
-      Toast.makeText(M3U8LiveDLoadActivity.this, getString(R.string.download_success),
+      Toast.makeText(this, getString(R.string.download_success),
           Toast.LENGTH_SHORT).show();
-      getBinding().setStateStr(getString(R.string.re_start));
-      getBinding().setSpeed("");
-      ALog.d(TAG, "md5: " + CommonUtil.getFileMD5(new File(task.getDownloadPath())));
+      ALog.d(TAG, "md5: " + CommonUtil.getFileMD5(new File(task.getFilePath())));
+      getBinding().pl.setInfo(task.getEntity());
     }
   }
 
@@ -209,61 +230,22 @@ public class M3U8LiveDLoadActivity extends BaseActivity<ActivityM3u8LiveBinding>
     return R.layout.activity_m3u8_live;
   }
 
-  public void onClick(View view) {
-    switch (view.getId()) {
-      case R.id.start:
-        if (!AppUtil.chekEntityValid(mEntity)) {
-          startD();
-          break;
-        }
-        if (Aria.download(this).load(mEntity.getId()).isRunning()) {
-          Aria.download(this).load(mEntity.getId()).stop();
-        } else {
-          Aria.download(this).load(mEntity.getId()).resume();
-        }
-        break;
-      case R.id.cancel:
-        if (AppUtil.chekEntityValid(mEntity)) {
-          Aria.download(this).load(mEntity.getId()).cancel(true);
-        }
-        break;
-    }
+  private void startD() {
+    mTaskId = Aria.download(M3U8LiveDLoadActivity.this)
+        .load(mUrl)
+        .setFilePath(mFilePath)
+        .ignoreFilePathOccupy()
+        .m3u8LiveOption(getLiveoption())
+        .create();
   }
 
-  private void startD() {
-    Aria.download(M3U8LiveDLoadActivity.this)
-        .load(mUrl)
-        .useServerFileName(true)
-        .setFilePath(mFilePath, true)
-        .asM3U8()
-        //.setBandWidthUrlConverter(new IBandWidthUrlConverter() {
-        //  @Override public String convert(String bandWidthUrl) {
-        //    int peerIndex = mUrl.lastIndexOf("/");
-        //    return mUrl.substring(0, peerIndex + 1) + bandWidthUrl;
-        //  }
-        //})
-        .asLive()
-        .setLiveTsUrlConvert(new ILiveTsUrlConverter() {
-          @Override public String convert(String m3u8Url, String tsUrl) {
-            int index = m3u8Url.lastIndexOf("/");
-            String parentUrl = m3u8Url.substring(0, index + 1);
-            return parentUrl + tsUrl;
-          }
-        })
-        .controller(ControllerType.CREATE_CONTROLLER)
-        //.setLiveTsUrlConvert(new IVodTsUrlConverter() {
-        //  @Override public List<String> convert(String m3u8Url, List<String> tsUrls) {
-        //    int peerIndex = m3u8Url.lastIndexOf("/");
-        //    String parentUrl = m3u8Url.substring(0, peerIndex + 1);
-        //    List<String> newUrls = new ArrayList<>();
-        //    for (String url : tsUrls) {
-        //      newUrls.add(parentUrl + url);
-        //    }
-        //
-        //    return newUrls;
-        //  }
-        //})
-        .create();
+  private M3U8LiveOption getLiveoption() {
+    M3U8LiveOption option = new M3U8LiveOption();
+    option
+        //.generateIndexFile()
+        .setLiveTsUrlConvert(new LiveTsUrlConverter());
+    //.setBandWidthUrlConverter(new BandWidthUrlConverter(mUrl));
+    return option;
   }
 
   @Override protected void dataCallback(int result, Object data) {
@@ -272,6 +254,22 @@ public class M3U8LiveDLoadActivity extends BaseActivity<ActivityM3u8LiveBinding>
       mModule.uploadUrl(this, String.valueOf(data));
     } else if (result == ModifyPathDialog.MODIFY_PATH_RESULT) {
       mModule.updateFilePath(this, String.valueOf(data));
+    }
+  }
+
+  static class LiveTsUrlConverter implements ILiveTsUrlConverter {
+    @Override public String convert(String m3u8Url, String tsUrl) {
+      int index = m3u8Url.lastIndexOf("/");
+      String parentUrl = m3u8Url.substring(0, index + 1);
+      return parentUrl + tsUrl;
+    }
+  }
+
+  static class BandWidthUrlConverter implements IBandWidthUrlConverter {
+
+    @Override public String convert(String m3u8Url, String bandWidthUrl) {
+      int peerIndex = m3u8Url.lastIndexOf("/");
+      return m3u8Url.substring(0, peerIndex + 1) + bandWidthUrl;
     }
   }
 }

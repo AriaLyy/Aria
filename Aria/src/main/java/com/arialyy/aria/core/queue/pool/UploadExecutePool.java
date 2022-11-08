@@ -15,14 +15,14 @@
  */
 package com.arialyy.aria.core.queue.pool;
 
-import com.arialyy.aria.core.AriaManager;
-import com.arialyy.aria.core.inf.AbsTask;
+import com.arialyy.aria.core.AriaConfig;
+import com.arialyy.aria.core.task.AbsTask;
 
 /**
  * Created by Aria.Lao on 2017/7/17.
  */
 public class UploadExecutePool<TASK extends AbsTask> extends BaseExecutePool<TASK> {
   @Override protected int getMaxSize() {
-    return AriaManager.getInstance().getUploadConfig().getMaxTaskNum();
+    return AriaConfig.getInstance().getUConfig().getMaxTaskNum();
   }
 }

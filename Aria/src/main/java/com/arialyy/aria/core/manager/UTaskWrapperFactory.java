@@ -17,6 +17,7 @@ package com.arialyy.aria.core.manager;
 
 import com.arialyy.aria.core.upload.UTaskWrapper;
 import com.arialyy.aria.core.upload.UploadEntity;
+import com.arialyy.aria.util.ALog;
 
 /**
  * Created by Aria.Lao on 2017/11/1. 任务实体工厂
@@ -38,10 +39,15 @@ class UTaskWrapperFactory implements INormalTEFactory<UploadEntity, UTaskWrapper
   }
 
   @Override public UTaskWrapper create(long taskId) {
+    UTaskWrapper wrapper;
     if (taskId == -1) {
-      return new UTaskWrapper(new UploadEntity());
+      wrapper = new UTaskWrapper(new UploadEntity());
+    } else {
+      wrapper = new UTaskWrapper(getUploadEntity(taskId));
     }
-    return new UTaskWrapper(getUploadEntity(taskId));
+
+    wrapper.setRequestType(wrapper.getEntity().getTaskType());
+    return wrapper;
   }
 
   /**

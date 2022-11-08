@@ -16,6 +16,12 @@
 package com.arialyy.aria.core.common;
 
 import com.arialyy.annotations.TaskEnum;
+import com.arialyy.aria.core.download.DownloadGroupTaskListener;
+import com.arialyy.aria.core.download.DownloadTaskListener;
+import com.arialyy.aria.core.scheduler.M3U8PeerTaskListener;
+import com.arialyy.aria.core.scheduler.SubTaskListener;
+import com.arialyy.aria.core.scheduler.TaskInternalListenerInterface;
+import com.arialyy.aria.core.upload.UploadTaskListener;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -69,61 +75,86 @@ public class ProxyHelper {
    * @return {@link #PROXY_TYPE_DOWNLOAD}，如果没有实体对象则返回空的list
    */
   public Set<Integer> checkProxyType(Class clazz) {
-    final String className = clazz.getName();
     Set<Integer> result = mProxyCache.get(clazz.getName());
     if (result != null) {
       return result;
     }
-    result = new HashSet<>();
-    try {
-      if (getClass().getClassLoader()
-          .loadClass(className.concat(TaskEnum.DOWNLOAD_GROUP.proxySuffix))
-          != null) {
-        result.add(PROXY_TYPE_DOWNLOAD_GROUP);
-      }
-    } catch (ClassNotFoundException e) {
-      //e.printStackTrace();
+    result = checkProxyTypeByInterface(clazz);
+    if (result != null && !result.isEmpty()) {
+      mProxyCache.put(clazz.getName(), result);
+      return result;
     }
-    try {
-      if (getClass().getClassLoader().loadClass(className.concat(TaskEnum.DOWNLOAD.proxySuffix))
-          != null) {
-        result.add(PROXY_TYPE_DOWNLOAD);
-      }
-    } catch (ClassNotFoundException e) {
-      //e.printStackTrace();
-    }
-
-    try {
-      if (getClass().getClassLoader().loadClass(className.concat(TaskEnum.UPLOAD.proxySuffix))
-          != null) {
-        result.add(PROXY_TYPE_UPLOAD);
-      }
-    } catch (ClassNotFoundException e) {
-      //e.printStackTrace();
-    }
-
-    try {
-      if (getClass().getClassLoader().loadClass(className.concat(TaskEnum.M3U8_PEER.proxySuffix))
-          != null) {
-        result.add(PROXY_TYPE_M3U8_PEER);
-      }
-    } catch (ClassNotFoundException e) {
-      //e.printStackTrace();
-    }
-
-    try {
-      if (getClass().getClassLoader()
-          .loadClass(className.concat(TaskEnum.DOWNLOAD_GROUP_SUB.proxySuffix))
-          != null) {
-        result.add(PROXY_TYPE_DOWNLOAD_GROUP_SUB);
-      }
-    } catch (ClassNotFoundException e) {
-      //e.printStackTrace();
-    }
+    result = checkProxyTypeByProxyClass(clazz);
 
     if (!result.isEmpty()) {
       mProxyCache.put(clazz.getName(), result);
     }
     return result;
+  }
+
+  private Set<Integer> checkProxyTypeByProxyClass(Class clazz) {
+    final String className = clazz.getName();
+    Set<Integer> result = new HashSet<>();
+    if (checkProxyExist(className, TaskEnum.DOWNLOAD_GROUP.proxySuffix)) {
+      result.add(PROXY_TYPE_DOWNLOAD_GROUP);
+    }
+    if (checkProxyExist(className, TaskEnum.DOWNLOAD.proxySuffix)) {
+      result.add(PROXY_TYPE_DOWNLOAD);
+    }
+
+    if (checkProxyExist(className, TaskEnum.UPLOAD.proxySuffix)) {
+      result.add(PROXY_TYPE_UPLOAD);
+    }
+
+    if (checkProxyExist(className, TaskEnum.M3U8_PEER.proxySuffix)) {
+      result.add(PROXY_TYPE_M3U8_PEER);
+    }
+
+    if (checkProxyExist(className, TaskEnum.DOWNLOAD_GROUP_SUB.proxySuffix)) {
+      result.add(PROXY_TYPE_DOWNLOAD_GROUP_SUB);
+    }
+    return result;
+  }
+
+  private Set<Integer> checkProxyTypeByInterface(Class clazz) {
+    if (!TaskInternalListenerInterface.class.isAssignableFrom(clazz)) {
+      return null;
+    }
+    Set<Integer> result = new HashSet<>();
+    if (DownloadGroupTaskListener.class.isAssignableFrom(clazz)) {
+      result.add(PROXY_TYPE_DOWNLOAD_GROUP);
+    }
+    if (DownloadTaskListener.class.isAssignableFrom(clazz)) {
+      result.add(PROXY_TYPE_DOWNLOAD);
+    }
+
+    if (UploadTaskListener.class.isAssignableFrom(clazz)) {
+      result.add(PROXY_TYPE_UPLOAD);
+    }
+
+    if (M3U8PeerTaskListener.class.isAssignableFrom(clazz)) {
+      result.add(PROXY_TYPE_M3U8_PEER);
+    }
+
+    if (SubTaskListener.class.isAssignableFrom(clazz)) {
+      result.add(PROXY_TYPE_DOWNLOAD_GROUP_SUB);
+    }
+    return result;
+  }
+
+  private boolean checkProxyExist(String className, String proxySuffix) {
+    String clsName = className.concat(proxySuffix);
+
+    try {
+      if (getClass().getClassLoader().loadClass(clsName) != null) {
+        return true;
+      }
+      if (Class.forName(clsName) != null) {
+        return true;
+      }
+    } catch (ClassNotFoundException e) {
+      //e.printStackTrace();
+    }
+    return false;
   }
 }

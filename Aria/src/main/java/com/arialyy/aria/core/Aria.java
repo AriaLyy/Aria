@@ -24,11 +24,10 @@ import android.app.Service;
 import android.content.Context;
 import android.os.Build;
 import android.widget.PopupWindow;
-import androidx.fragment.app.DialogFragment;
-import androidx.fragment.app.Fragment;
 import com.arialyy.aria.core.download.DownloadReceiver;
 import com.arialyy.aria.core.upload.UploadReceiver;
 import com.arialyy.aria.util.ALog;
+import com.arialyy.aria.util.CommonUtil;
 
 /**
  * Created by lyy on 2016/12/1.
@@ -132,21 +131,20 @@ import com.arialyy.aria.util.ALog;
   private static Context convertContext(Object obj) {
     if (obj instanceof Application) {
       return (Application) obj;
-    } else if (obj instanceof Service) {
+    }
+    if (obj instanceof Service) {
       return (Service) obj;
-    } else if (obj instanceof Activity) {
+    }
+    if (obj instanceof Activity) {
       return (Activity) obj;
-    } else if (obj instanceof DialogFragment) {
-      return ((DialogFragment) obj).getContext();
-    } else if (obj instanceof android.app.DialogFragment) {
-      return ((android.app.DialogFragment) obj).getActivity();
-    } else if (obj instanceof Fragment) {
-      return ((Fragment) obj).getContext();
-    } else if (obj instanceof android.app.Fragment) {
-      return ((android.app.Fragment) obj).getActivity();
-    } else if (obj instanceof Dialog) {
+    }
+    if (CommonUtil.isFragment(obj.getClass())) {
+      return CommonUtil.getFragmentActivity(obj);
+    }
+    if (obj instanceof Dialog) {
       return ((Dialog) obj).getContext();
-    } else if (obj instanceof PopupWindow) {
+    }
+    if (obj instanceof PopupWindow) {
       return ((PopupWindow) obj).getContentView().getContext();
     }
     ALog.e("Aria", "请使用download(this)或upload(this)");

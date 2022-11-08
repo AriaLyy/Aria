@@ -18,13 +18,13 @@ package com.arialyy.aria.core.queue;
 
 import com.arialyy.aria.core.download.DGTaskWrapper;
 import com.arialyy.aria.core.download.DTaskWrapper;
-import com.arialyy.aria.core.download.DownloadGroupTask;
-import com.arialyy.aria.core.download.DownloadTask;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
-import com.arialyy.aria.core.inf.ITask;
-import com.arialyy.aria.core.scheduler.ISchedulers;
+import com.arialyy.aria.core.task.DownloadGroupTask;
+import com.arialyy.aria.core.task.DownloadTask;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
+import com.arialyy.aria.core.task.ITask;
+import com.arialyy.aria.core.listener.ISchedulers;
 import com.arialyy.aria.core.upload.UTaskWrapper;
-import com.arialyy.aria.core.upload.UploadTask;
+import com.arialyy.aria.core.task.UploadTask;
 
 /**
  * Created by lyy on 2016/8/18.

@@ -28,7 +28,8 @@ import com.arialyy.simple.R;
 import com.arialyy.simple.base.BaseActivity;
 import com.arialyy.simple.base.adapter.RvItemClickSupport;
 import com.arialyy.simple.common.NormalToAdapter;
-import com.arialyy.simple.core.download.mutil.MultiTaskActivity;
+import com.arialyy.simple.core.download.fragment.MultiFragmentActivity;
+import com.arialyy.simple.core.download.mutil.MultiTaskListActivity;
 import com.arialyy.simple.databinding.ActivityDownloadMeanBinding;
 import com.arialyy.simple.modlue.CommonModule;
 import com.arialyy.simple.to.NormalTo;
@@ -76,7 +77,7 @@ public class DownloadActivity extends BaseActivity<ActivityDownloadMeanBinding> 
                 break;
               case 1:
                 module.startNextActivity(DownloadActivity.this, data.get(position),
-                    MultiTaskActivity.class);
+                    MultiTaskListActivity.class);
                 break;
               case 2:
                 module.startNextActivity(DownloadActivity.this, data.get(position),
@@ -87,7 +88,9 @@ public class DownloadActivity extends BaseActivity<ActivityDownloadMeanBinding> 
                     KotlinDownloadActivity.class);
                 break;
               case 4:
-                // 服务中
+                // 多fragment
+                module.startNextActivity(DownloadActivity.this, data.get(position),
+                    MultiFragmentActivity.class);
                 break;
               case 5:
                 // 组件中使用

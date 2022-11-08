@@ -15,7 +15,7 @@
  */
 package com.arialyy.aria.core.command;
 
-import com.arialyy.aria.core.inf.AbsGroupTaskWrapper;
+import com.arialyy.aria.core.download.AbsGroupTaskWrapper;
 
 /**
  * Created by AriaL on 2017/6/29. 任务组子任务控制命令
@@ -46,13 +46,11 @@ public class GroupCmdFactory {
   }
 
   /**
-   * @param target 创建任务的对象
    * @param wrapper 参数信息
    * @param type 命令类型{@link #SUB_TASK_START}、{@link #SUB_TASK_STOP}
    * @param childUrl 需要控制的子任务url
    */
-  public AbsGroupCmd createCmd(String target, AbsGroupTaskWrapper wrapper, int type,
-      String childUrl) {
+  public AbsGroupCmd createCmd(AbsGroupTaskWrapper wrapper, int type, String childUrl) {
     AbsGroupCmd cmd = null;
     switch (type) {
       case SUB_TASK_START:

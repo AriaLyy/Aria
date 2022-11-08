@@ -38,6 +38,5 @@ public class FragmentActivity extends BaseActivity<FragmentDownloadBinding> {
 
     final NormalTo to = getIntent().getParcelableExtra(MainActivity.KEY_MAIN_DATA);
     setTitle(to.title);
-    Aria.download(this).register();
   }
 }

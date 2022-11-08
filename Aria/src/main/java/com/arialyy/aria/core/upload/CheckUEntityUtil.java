@@ -17,7 +17,6 @@ package com.arialyy.aria.core.upload;
 
 import android.text.TextUtils;
 import com.arialyy.aria.core.inf.ICheckEntityUtil;
-import com.arialyy.aria.core.inf.ITaskWrapper;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CheckUtil;
 import java.io.File;
@@ -26,12 +25,14 @@ public class CheckUEntityUtil implements ICheckEntityUtil {
   private final String TAG = "CheckUEntityUtil";
   private UTaskWrapper mWrapper;
   private UploadEntity mEntity;
+  private int action;
 
-  public static CheckUEntityUtil newInstance(UTaskWrapper wrapper) {
-    return new CheckUEntityUtil(wrapper);
+  public static CheckUEntityUtil newInstance(UTaskWrapper wrapper, int action) {
+    return new CheckUEntityUtil(wrapper, action);
   }
 
-  private CheckUEntityUtil(UTaskWrapper wrapper) {
+  private CheckUEntityUtil(UTaskWrapper wrapper, int action) {
+    this.action = action;
     mWrapper = wrapper;
     mEntity = mWrapper.getEntity();
   }
@@ -39,11 +40,11 @@ public class CheckUEntityUtil implements ICheckEntityUtil {
   @Override
   public boolean checkEntity() {
     if (mWrapper.getErrorEvent() != null) {
-      ALog.e(TAG, mWrapper.getErrorEvent().errorMsg);
+      ALog.e(TAG, String.format("任务操作失败，%s", mWrapper.getErrorEvent().errorMsg));
       return false;
     }
 
-    boolean b = checkFtps() && checkUrl() && checkFilePath();
+    boolean b = checkUrl() && checkFilePath();
     if (b) {
       mEntity.save();
     }
@@ -59,6 +60,12 @@ public class CheckUEntityUtil implements ICheckEntityUtil {
       ALog.e(TAG, "上传失败，文件路径【" + filePath + "】不合法");
       return false;
     }
+    // 任务是新任务，并且路径冲突就不会继续执行
+    if (mWrapper.isNewTask()
+        && !CheckUtil.checkUPathConflicts(mWrapper.isIgnoreFilePathOccupy(), filePath,
+        mWrapper.getRequestType())) {
+      return false;
+    }
 
     File file = new File(mEntity.getFilePath());
     if (!file.exists()) {
@@ -69,6 +76,7 @@ public class CheckUEntityUtil implements ICheckEntityUtil {
       ALog.e(TAG, "上传失败，文件【" + filePath + "】不能是文件夹");
       return false;
     }
+
     return true;
   }
 
@@ -78,7 +86,7 @@ public class CheckUEntityUtil implements ICheckEntityUtil {
     if (TextUtils.isEmpty(url)) {
       ALog.e(TAG, "上传失败，url为null");
       return false;
-    } else if (!CheckUtil.checkUrlNotThrow(url)) {
+    } else if (!CheckUtil.checkUrl(url)) {
       ALog.e(TAG, "上传失败，url【" + url + "】错误");
       return false;
     }
@@ -88,18 +96,6 @@ public class CheckUEntityUtil implements ICheckEntityUtil {
       return false;
     }
     mEntity.setUrl(url);
-    return true;
-  }
-
-  private boolean checkFtps() {
-    //if (mWrapper.getRequestType() == ITaskWrapper.U_FTP && mWrapper.asFtp()
-    //    .getUrlEntity().isFtps) {
-    //  String ftpUrl = mEntity.getUrl();
-    //  if (!ftpUrl.startsWith("ftps") && !ftpUrl.startsWith("sftp")) {
-    //    ALog.e(TAG, String.format("地址【%s】错误，ftps地址开头必须是：ftps或sftp", ftpUrl));
-    //    return false;
-    //  }
-    //}
     return true;
   }
 }

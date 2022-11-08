@@ -15,12 +15,9 @@
  */
 package com.arialyy.aria.core.queue.pool;
 
-import com.arialyy.aria.core.AriaManager;
-import com.arialyy.aria.core.inf.AbsTask;
+import com.arialyy.aria.core.AriaConfig;
+import com.arialyy.aria.core.task.AbsTask;
 import com.arialyy.aria.util.ALog;
-import com.arialyy.aria.util.CommonUtil;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by AriaL on 2017/6/29.
@@ -30,7 +27,7 @@ class DLoadExecutePool<TASK extends AbsTask> extends BaseExecutePool<TASK> {
   private final String TAG = "DownloadExecutePool";
 
   @Override protected int getMaxSize() {
-    return AriaManager.getInstance().getDownloadConfig().getMaxTaskNum();
+    return AriaConfig.getInstance().getDConfig().getMaxTaskNum();
   }
 
   @Override public boolean putTask(TASK task) {
@@ -45,9 +42,10 @@ class DLoadExecutePool<TASK extends AbsTask> extends BaseExecutePool<TASK> {
         return false;
       } else {
         if (mExecuteQueue.size() >= mSize) {
-          Set<String> keys = mExecuteMap.keySet();
-          for (String key : keys) {
-            if (mExecuteMap.get(key).isHighestPriorityTask()) return false;
+          for (TASK temp : mExecuteQueue) {
+            if (temp.isHighestPriorityTask()) {
+              return false;
+            }
           }
           if (pollFirstTask()) {
             return putNewTask(task);
@@ -61,22 +59,15 @@ class DLoadExecutePool<TASK extends AbsTask> extends BaseExecutePool<TASK> {
   }
 
   @Override boolean pollFirstTask() {
-    try {
-      TASK oldTask = mExecuteQueue.poll(TIME_OUT, TimeUnit.MICROSECONDS);
-      if (oldTask == null) {
-        ALog.w(TAG, "移除任务失败，错误原因：任务为null");
-        return false;
-      }
-      if (oldTask.isHighestPriorityTask()) {
-        return false;
-      }
-      oldTask.stop();
-      String key = CommonUtil.keyToHashKey(oldTask.getKey());
-      mExecuteMap.remove(key);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+    TASK oldTask = mExecuteQueue.pollFirst();
+    if (oldTask == null) {
+      ALog.w(TAG, "移除任务失败，错误原因：任务为null");
       return false;
     }
+    if (oldTask.isHighestPriorityTask()) {
+      return false;
+    }
+    oldTask.stop();
     return true;
   }
 }

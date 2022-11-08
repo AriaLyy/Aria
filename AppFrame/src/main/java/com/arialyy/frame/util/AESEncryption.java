@@ -12,7 +12,7 @@ import javax.crypto.spec.SecretKeySpec;
 /**
  * AES加密
  *
- * @author lyy
+ * author lyy
  */
 public class AESEncryption {
   /**

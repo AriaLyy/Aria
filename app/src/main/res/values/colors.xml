@@ -6,7 +6,9 @@
   <color name="icon_color">#FF4081</color>
   <color name="black">#2B2B2B</color>
   <color name="text_black">#2B2B2B</color>
+  <color name="text_grey">#55544F</color>
   <color name="icon_black">#2B2B2B</color>
   <color name="bg_grey">#efefef</color>
   <color name="bg_line">#597F96</color>
+  <color name="transparent">#00000000</color>
 </resources>

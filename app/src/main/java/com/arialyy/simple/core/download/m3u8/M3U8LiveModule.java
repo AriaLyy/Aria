@@ -55,7 +55,7 @@ public class M3U8LiveModule extends BaseViewModule {
       singDownloadInfo.setFilePath(filePath);
       singDownloadInfo.setFileName(temp.getName());
     } else {
-      AppUtil.setConfigValue(context, M3U8_LIVE_PATH_KEY, singDownloadInfo.getDownloadPath());
+      AppUtil.setConfigValue(context, M3U8_LIVE_PATH_KEY, singDownloadInfo.getFilePath());
       AppUtil.setConfigValue(context, M3U8_LIVE_URL_KEY, singDownloadInfo.getUrl());
     }
     liveData.postValue(singDownloadInfo);

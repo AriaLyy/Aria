@@ -19,6 +19,7 @@ import com.arialyy.aria.core.download.DGEntityWrapper;
 import com.arialyy.aria.core.download.DGTaskWrapper;
 import com.arialyy.aria.core.download.DownloadGroupEntity;
 import com.arialyy.aria.orm.DbEntity;
+import com.arialyy.aria.util.CommonUtil;
 import com.arialyy.aria.util.DbDataHelper;
 import java.util.List;
 
@@ -26,7 +27,7 @@ import java.util.List;
  * Created by Aria.Lao on 2017/11/1. 组合任务wrapper
  */
 class DGTaskWrapperFactory implements IGroupWrapperFactory<DownloadGroupEntity, DGTaskWrapper> {
-  private static final String TAG = "DTaskWrapperFactory";
+  private final String TAG = CommonUtil.getClassName(this);
   private static volatile DGTaskWrapperFactory INSTANCE = null;
 
   private DGTaskWrapperFactory() {
@@ -42,14 +43,17 @@ class DGTaskWrapperFactory implements IGroupWrapperFactory<DownloadGroupEntity, 
   }
 
   @Override public DGTaskWrapper getGroupWrapper(long taskId) {
+    DGTaskWrapper wrapper;
     if (taskId == -1) {
-      return new DGTaskWrapper(new DownloadGroupEntity());
+      wrapper = new DGTaskWrapper(new DownloadGroupEntity());
+    } else {
+      DownloadGroupEntity entity = getOrCreateHttpDGEntity(taskId);
+      wrapper = new DGTaskWrapper(entity);
+      if (entity.getSubEntities() != null && !entity.getSubEntities().isEmpty()) {
+        wrapper.setSubTaskWrapper(DbDataHelper.createDGSubTaskWrapper(entity));
+      }
     }
-    DownloadGroupEntity entity = getOrCreateHttpDGEntity(taskId);
-    DGTaskWrapper wrapper = new DGTaskWrapper(entity);
-    if (entity.getSubEntities() != null && !entity.getSubEntities().isEmpty()) {
-      wrapper.setSubTaskWrapper(DbDataHelper.createDGSubTaskWrapper(entity));
-    }
+    wrapper.setRequestType(wrapper.getEntity().getTaskType());
     return wrapper;
   }
 

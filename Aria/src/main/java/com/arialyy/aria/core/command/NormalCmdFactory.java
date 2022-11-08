@@ -16,7 +16,8 @@
 
 package com.arialyy.aria.core.command;
 
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
+import com.arialyy.aria.core.task.ITask;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 
 /**
  * Created by Lyy on 2016/9/23.
@@ -83,8 +84,7 @@ public class NormalCmdFactory extends AbsCmdFactory<AbsTaskWrapper, AbsNormalCmd
    * @param entity 下载实体
    * @param type 命令类型{@link #TASK_CREATE}、{@link #TASK_START}、{@link #TASK_CANCEL}、{@link
    * #TASK_STOP}、{@link #TASK_HIGHEST_PRIORITY}、{@link #TASK_STOP_ALL}、{@link #TASK_RESUME_ALL}
-   * @param taskType {@link ICmd#TASK_TYPE_DOWNLOAD}、{@link ICmd#TASK_TYPE_DOWNLOAD_GROUP}、{@link
-   * ICmd#TASK_TYPE_UPLOAD}
+   * @param taskType {@link ITask#DOWNLOAD}、{@link ITask#DOWNLOAD_GROUP}、{@link ITask#UPLOAD}
    */
   public AbsNormalCmd createCmd(AbsTaskWrapper entity, int type, int taskType) {
     switch (type) {

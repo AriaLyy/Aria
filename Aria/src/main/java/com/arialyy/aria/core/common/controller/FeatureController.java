@@ -19,21 +19,21 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
-import com.arialyy.aria.core.AriaManager;
+import com.arialyy.aria.core.AriaConfig;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.download.CheckDEntityUtil;
 import com.arialyy.aria.core.download.CheckDGEntityUtil;
 import com.arialyy.aria.core.download.CheckFtpDirEntityUtil;
 import com.arialyy.aria.core.download.DGTaskWrapper;
 import com.arialyy.aria.core.download.DTaskWrapper;
-import com.arialyy.aria.core.inf.AbsEntity;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
 import com.arialyy.aria.core.inf.ICheckEntityUtil;
-import com.arialyy.aria.core.inf.ITask;
-import com.arialyy.aria.core.inf.ITaskWrapper;
-import com.arialyy.aria.core.scheduler.ISchedulers;
+import com.arialyy.aria.core.listener.ISchedulers;
 import com.arialyy.aria.core.scheduler.TaskSchedulers;
+import com.arialyy.aria.core.task.ITask;
 import com.arialyy.aria.core.upload.CheckUEntityUtil;
 import com.arialyy.aria.core.upload.UTaskWrapper;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
+import com.arialyy.aria.core.wrapper.ITaskWrapper;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
 import java.lang.reflect.Constructor;
@@ -43,9 +43,25 @@ import java.lang.reflect.InvocationTargetException;
  * 功能控制器
  */
 public abstract class FeatureController {
+  private static final int ACTION_DEF = 0;
+  public static final int ACTION_CREATE = 1;
+  public static final int ACTION_RESUME = 2;
+  public static final int ACTION_STOP = 3;
+  public static final int ACTION_CANCEL = 4;
+  public static final int ACTION_ADD = 5;
+  public static final int ACTION_PRIORITY = 6;
+  public static final int ACTION_RETRY = 7;
+  public static final int ACTION_RESTART = 8;
+  public static final int ACTION_SAVE = 9;
+
   private final String TAG;
 
   private AbsTaskWrapper mTaskWrapper;
+  /**
+   * 是否忽略权限检查 true 忽略权限检查
+   */
+  private boolean ignoreCheckPermissions = false;
+  private int action = ACTION_DEF;
 
   FeatureController(AbsTaskWrapper wrapper) {
     mTaskWrapper = wrapper;
@@ -87,6 +103,24 @@ public abstract class FeatureController {
     return null;
   }
 
+  void setAction(int action) {
+    this.action = action;
+  }
+
+  /**
+   * 是否忽略权限检查
+   */
+  public void ignoreCheckPermissions() {
+    this.ignoreCheckPermissions = true;
+  }
+
+  /**
+   * 强制执行任务，不管文件路径是否被占用
+   */
+  public void ignoreFilePathOccupy() {
+    mTaskWrapper.setIgnoreFilePathOccupy(true);
+  }
+
   protected AbsTaskWrapper getTaskWrapper() {
     return mTaskWrapper;
   }
@@ -111,7 +145,7 @@ public abstract class FeatureController {
    * 如果检查实体失败，将错误回调
    */
   boolean checkConfig() {
-    if (!checkPermission()) {
+    if (!ignoreCheckPermissions && !checkPermission()) {
       return false;
     }
     boolean b = checkEntity();
@@ -134,21 +168,21 @@ public abstract class FeatureController {
    */
   private boolean checkPermission() {
 
-    if (AriaManager.getInstance()
+    if (AriaConfig.getInstance()
         .getAPP()
         .checkCallingOrSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         != PackageManager.PERMISSION_GRANTED) {
       ALog.e(TAG, "启动失败，缺少权限：Manifest.permission.WRITE_EXTERNAL_STORAGE");
       return false;
     }
-    if (AriaManager.getInstance()
+    if (AriaConfig.getInstance()
         .getAPP()
         .checkCallingOrSelfPermission(Manifest.permission.INTERNET)
         != PackageManager.PERMISSION_GRANTED) {
       ALog.e(TAG, "启动失败，缺少权限：Manifest.permission.INTERNET");
       return false;
     }
-    if (AriaManager.getInstance()
+    if (AriaConfig.getInstance()
         .getAPP()
         .checkCallingOrSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
         != PackageManager.PERMISSION_GRANTED) {
@@ -162,15 +196,15 @@ public abstract class FeatureController {
   private boolean checkEntity() {
     ICheckEntityUtil checkUtil = null;
     if (mTaskWrapper instanceof DTaskWrapper) {
-      checkUtil = CheckDEntityUtil.newInstance((DTaskWrapper) mTaskWrapper);
+      checkUtil = CheckDEntityUtil.newInstance((DTaskWrapper) mTaskWrapper, action);
     } else if (mTaskWrapper instanceof DGTaskWrapper) {
       if (mTaskWrapper.getRequestType() == ITaskWrapper.D_FTP_DIR) {
-        checkUtil = CheckFtpDirEntityUtil.newInstance((DGTaskWrapper) mTaskWrapper);
+        checkUtil = CheckFtpDirEntityUtil.newInstance((DGTaskWrapper) mTaskWrapper, action);
       } else if (mTaskWrapper.getRequestType() == ITaskWrapper.DG_HTTP) {
-        checkUtil = CheckDGEntityUtil.newInstance((DGTaskWrapper) mTaskWrapper);
+        checkUtil = CheckDGEntityUtil.newInstance((DGTaskWrapper) mTaskWrapper, action);
       }
     } else if (mTaskWrapper instanceof UTaskWrapper) {
-      checkUtil = CheckUEntityUtil.newInstance((UTaskWrapper) mTaskWrapper);
+      checkUtil = CheckUEntityUtil.newInstance((UTaskWrapper) mTaskWrapper, action);
     }
     return checkUtil != null && checkUtil.checkEntity();
   }

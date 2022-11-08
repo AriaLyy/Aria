@@ -22,9 +22,14 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.arialyy.aria.core.Aria;
+import com.arialyy.aria.core.download.m3u8.M3U8VodOption;
+import com.arialyy.aria.core.processor.IVodTsUrlConverter;
+import com.arialyy.aria.util.ALog;
 import com.arialyy.simple.R;
 import com.arialyy.simple.base.adapter.AbsHolder;
 import com.arialyy.simple.base.adapter.AbsRVAdapter;
+import com.arialyy.simple.core.download.m3u8.M3U8VodDLoadActivity;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -60,27 +65,45 @@ final class FileListAdapter extends AbsRVAdapter<FileListEntity, FileListAdapter
   protected void bindData(FileListHolder holder, int position, final FileListEntity item) {
     holder.name.setText("文件名：" + item.name);
     holder.url.setText("下载地址：" + item.key);
-    holder.url.setVisibility(item.isGroup ? View.GONE : View.VISIBLE);
+    if (item.type == 1) {
+      holder.url.setVisibility(View.GONE);
+    }
     holder.path.setText("保存路径：" + item.downloadPath);
     if (mBtStates.get(item.key)) {
       holder.bt.setEnabled(true);
       holder.bt.setOnClickListener(new View.OnClickListener() {
         @Override public void onClick(View v) {
           Toast.makeText(getContext(), "开始下载：" + item.name, Toast.LENGTH_SHORT).show();
-          if (item.isGroup) {
-            Aria.download(getContext())
-                .loadGroup(Arrays.asList(item.urls))
-                .setSubFileName(Arrays.asList(item.names))
-                .setDirPath(item.downloadPath)
-                .setGroupAlias(item.name)
-                .unknownSize()
-                .create();
-          } else {
-            Aria.download(getContext())
-                .load(item.key)
-                .setFilePath(item.downloadPath)
-                .create();
+          switch (item.type) {
+            case 0:
+              Aria.download(getContext())
+                  .load(item.key)
+                  .setFilePath(item.downloadPath)
+                  .create();
+              break;
+            case 1:
+              Aria.download(getContext())
+                  .loadGroup(Arrays.asList(item.urls))
+                  .setSubFileName(Arrays.asList(item.names))
+                  .setDirPath(item.downloadPath)
+                  .setGroupAlias(item.name)
+                  .unknownSize()
+                  .create();
+              ALog.d(TAG, "getGroupTaskList = " +  Aria.download(this).getGroupTaskList().size());
+              break;
+            case 2:
+              M3U8VodOption option = new M3U8VodOption();
+              option.setVodTsUrlConvert(new IVodTs());
+              option.generateIndexFile();
+
+              Aria.download(getContext())
+                  .load(item.key)
+                  .setFilePath(item.downloadPath, true)
+                  .m3u8VodOption(option)
+                  .create();
+              break;
           }
+
         }
       });
     } else {
@@ -123,6 +146,17 @@ final class FileListAdapter extends AbsRVAdapter<FileListEntity, FileListAdapter
       url = findViewById(R.id.download_url);
       path = findViewById(R.id.download_path);
       bt = findViewById(R.id.bt);
+    }
+  }
+  static class IVodTs implements IVodTsUrlConverter{
+
+    @Override public List<String> convert(String m3u8Url, List<String> tsUrls) {
+      List<String> temp = new ArrayList<>();
+      for (String tsUrl : tsUrls){
+        temp.add("http://qn.shytong.cn" + tsUrl);
+      }
+
+      return temp;
     }
   }
 }

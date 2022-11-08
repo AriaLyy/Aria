@@ -33,7 +33,7 @@ public class FtpDownloadModule extends BaseViewModule {
   private final String FTP_URL_KEY = "FTP_URL_KEY";
   private final String FTP_PATH_KEY = "FTP_PATH_KEY";
 
-  private final String ftpDefUrl = "ftp://9.9.9.50:22/Cyberduck-6.9.4.30164.zip";
+  private final String ftpDefUrl = "ftp://192.168.0.104:2121/qqqq.exe";
   private final String ftpDefPath =
       Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath();
 
@@ -41,12 +41,36 @@ public class FtpDownloadModule extends BaseViewModule {
   private DownloadEntity singDownloadInfo;
 
   /**
-   * xx
    * 单任务下载的信息
    */
   LiveData<DownloadEntity> getFtpDownloadInfo(Context context) {
-    String url = AppUtil.getConfigValue(context, FTP_URL_KEY, ftpDefUrl);
-    String filePath = AppUtil.getConfigValue(context, FTP_PATH_KEY, ftpDefPath);
+    //String url = AppUtil.getConfigValue(context, FTP_URL_KEY, ftpDefUrl);
+    //String filePath = AppUtil.getConfigValue(context, FTP_PATH_KEY, ftpDefPath);
+    //String url = "ftp://9.9.9.72:2121/Cyberduck-6.9.4.30164.zip";
+
+    singDownloadInfo = Aria.download(context).getFirstDownloadEntity(ftpDefUrl);
+    if (singDownloadInfo == null) {
+      singDownloadInfo = new DownloadEntity();
+      singDownloadInfo.setUrl(ftpDefUrl);
+      String name = getFileName(ftpDefUrl);
+      singDownloadInfo.setFileName(name);
+      singDownloadInfo.setFilePath(ftpDefPath + name);
+    } else {
+      AppUtil.setConfigValue(context, FTP_PATH_KEY, singDownloadInfo.getFilePath());
+      AppUtil.setConfigValue(context, FTP_URL_KEY, singDownloadInfo.getUrl());
+    }
+    liveData.postValue(singDownloadInfo);
+
+    return liveData;
+  }
+
+  /**
+   * 单任务下载的信息
+   */
+  LiveData<DownloadEntity> getSftpDownloadInfo(Context context) {
+    //String url = AppUtil.getConfigValue(context, FTP_URL_KEY, ftpDefUrl);
+    //String filePath = AppUtil.getConfigValue(context, FTP_PATH_KEY, ftpDefPath);
+    String url = "ftp://9.9.9.72:22/Cyberduck-6.9.4.30164.zip";
 
     singDownloadInfo = Aria.download(context).getFirstDownloadEntity(url);
     if (singDownloadInfo == null) {
@@ -54,7 +78,7 @@ public class FtpDownloadModule extends BaseViewModule {
       singDownloadInfo.setUrl(url);
       String name = getFileName(ftpDefUrl);
       singDownloadInfo.setFileName(name);
-      singDownloadInfo.setFilePath(filePath + name);
+      singDownloadInfo.setFilePath(ftpDefPath + name);
     } else {
       AppUtil.setConfigValue(context, FTP_PATH_KEY, singDownloadInfo.getFilePath());
       AppUtil.setConfigValue(context, FTP_URL_KEY, singDownloadInfo.getUrl());

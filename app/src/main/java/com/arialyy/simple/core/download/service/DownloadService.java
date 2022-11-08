@@ -22,7 +22,7 @@ import android.os.IBinder;
 import androidx.annotation.Nullable;
 import com.arialyy.annotations.Download;
 import com.arialyy.aria.core.Aria;
-import com.arialyy.aria.core.download.DownloadTask;
+import com.arialyy.aria.core.task.DownloadTask;
 import com.arialyy.frame.util.show.T;
 
 /**

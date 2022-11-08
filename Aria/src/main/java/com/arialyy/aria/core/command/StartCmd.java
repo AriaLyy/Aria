@@ -16,51 +16,47 @@
 
 package com.arialyy.aria.core.command;
 
-import com.arialyy.aria.core.AriaManager;
+import com.arialyy.aria.core.AriaConfig;
 import com.arialyy.aria.core.common.QueueMod;
-import com.arialyy.aria.core.download.DGTaskWrapper;
-import com.arialyy.aria.core.download.DTaskWrapper;
-import com.arialyy.aria.core.download.DownloadEntity;
-import com.arialyy.aria.core.download.DownloadGroupEntity;
-import com.arialyy.aria.core.inf.AbsTask;
-import com.arialyy.aria.core.inf.AbsTaskWrapper;
 import com.arialyy.aria.core.inf.IEntity;
-import com.arialyy.aria.core.inf.ITaskWrapper;
-import com.arialyy.aria.core.manager.TaskWrapperManager;
-import com.arialyy.aria.core.queue.DownloadGroupTaskQueue;
-import com.arialyy.aria.core.queue.DownloadTaskQueue;
-import com.arialyy.aria.core.queue.UploadTaskQueue;
-import com.arialyy.aria.core.upload.UTaskWrapper;
-import com.arialyy.aria.core.upload.UploadEntity;
-import com.arialyy.aria.orm.DbEntity;
+import com.arialyy.aria.core.task.AbsTask;
+import com.arialyy.aria.core.wrapper.AbsTaskWrapper;
 import com.arialyy.aria.util.ALog;
-import com.arialyy.aria.util.CommonUtil;
 import com.arialyy.aria.util.NetUtils;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by lyy on 2016/8/22. 开始命令 队列模型{@link QueueMod#NOW}、{@link QueueMod#WAIT}
  */
-final class StartCmd<T extends AbsTaskWrapper> extends AbsNormalCmd<T> {
+final public class StartCmd<T extends AbsTaskWrapper> extends AbsNormalCmd<T> {
+
+  private boolean nowStart = false;
 
   StartCmd(T entity, int taskType) {
     super(entity, taskType);
   }
 
+  /**
+   * 立即执行任务
+   *
+   * @param nowStart true 立即执行任务，无论执行队列是否满了
+   */
+  public void setNowStart(boolean nowStart) {
+    this.nowStart = nowStart;
+  }
+
   @Override public void executeCmd() {
     if (!canExeCmd) return;
-    if (!NetUtils.isConnected(AriaManager.getInstance().getAPP())) {
+    if (!NetUtils.isConnected(AriaConfig.getInstance().getAPP())) {
       ALog.e(TAG, "启动任务失败，网络未连接");
       return;
     }
     String mod;
     int maxTaskNum = mQueue.getMaxTaskNum();
-    AriaManager manager = AriaManager.getInstance();
+    AriaConfig config = AriaConfig.getInstance();
     if (isDownloadCmd) {
-      mod = manager.getDownloadConfig().getQueueMod();
+      mod = config.getDConfig().getQueueMod();
     } else {
-      mod = manager.getUploadConfig().getQueueMod();
+      mod = config.getUConfig().getQueueMod();
     }
 
     AbsTask task = getTask();
@@ -86,13 +82,29 @@ final class StartCmd<T extends AbsTaskWrapper> extends AbsNormalCmd<T> {
             startTask();
           }
         } else {
-          sendWaitState(task);
+          if (nowStart) {
+            startTask();
+          } else {
+            sendWaitState(task);
+          }
         }
       }
     } else {
       //任务没执行并且执行队列中没有该任务，才认为任务没有运行中
       if (!mQueue.taskIsRunning(task.getKey())) {
-        resumeTask();
+        if (mod.equals(QueueMod.NOW.getTag())) {
+          resumeTask();
+        } else {
+          if (mQueue.getCurrentExePoolNum() < maxTaskNum) {
+            resumeTask();
+          } else {
+            if (nowStart) {
+              resumeTask();
+            } else {
+              sendWaitState(task);
+            }
+          }
+        }
       } else {
         ALog.w(TAG, String.format("任务【%s】已经在运行", task.getTaskName()));
       }
@@ -106,73 +118,7 @@ final class StartCmd<T extends AbsTaskWrapper> extends AbsNormalCmd<T> {
    * 当缓冲队列为null时，查找数据库中所有等待中的任务
    */
   private void findAllWaitTask() {
-    new Thread(new WaitTaskThread()).start();
-  }
-
-  private class WaitTaskThread implements Runnable {
-
-    @Override public void run() {
-      if (isDownloadCmd) {
-        handleTask(findWaitData(1));
-        handleTask(findWaitData(2));
-      } else {
-        handleTask(findWaitData(3));
-      }
-    }
-
-    private List<AbsTaskWrapper> findWaitData(int type) {
-      List<AbsTaskWrapper> waitList = new ArrayList<>();
-      TaskWrapperManager tManager = TaskWrapperManager.getInstance();
-      if (type == 1) { // 普通下载任务
-        List<DownloadEntity> dEntities = DbEntity.findDatas(DownloadEntity.class,
-            "isGroupChild=? and state=?", "false", "3");
-        if (dEntities != null && !dEntities.isEmpty()) {
-          for (DownloadEntity e : dEntities) {
-            waitList.add(tManager.getNormalTaskWrapper(DTaskWrapper.class, e.getId()));
-          }
-        }
-      } else if (type == 2) { // 组合任务
-        List<DownloadGroupEntity> dEntities =
-            DbEntity.findDatas(DownloadGroupEntity.class, "state=?", "3");
-        if (dEntities != null && !dEntities.isEmpty()) {
-          for (DownloadGroupEntity e : dEntities) {
-            if (e.getTaskType() == ITaskWrapper.DG_HTTP) {
-              waitList.add(tManager.getGroupWrapper(DGTaskWrapper.class, e.getId()));
-            } else if (e.getTaskType() == ITaskWrapper.D_FTP_DIR) {
-              waitList.add(tManager.getGroupWrapper(DGTaskWrapper.class, e.getId()));
-            }
-          }
-        }
-      } else if (type == 3) { //普通上传任务
-        List<UploadEntity> dEntities = DbEntity.findDatas(UploadEntity.class, "state=?", "3");
-
-        if (dEntities != null && !dEntities.isEmpty()) {
-          for (UploadEntity e : dEntities) {
-            waitList.add(tManager.getNormalTaskWrapper(UTaskWrapper.class, e.getId()));
-          }
-        }
-      }
-      return waitList;
-    }
-
-    private void handleTask(List<AbsTaskWrapper> waitList) {
-      for (AbsTaskWrapper te : waitList) {
-        if (te.getEntity() == null) continue;
-        AbsTask task = getTask(te.getKey());
-        if (task != null) continue;
-        if (te instanceof DTaskWrapper) {
-          if (te.getRequestType() == ITaskWrapper.D_FTP
-              || te.getRequestType() == ITaskWrapper.U_FTP) {
-            te.asFtp().setUrlEntity(CommonUtil.getFtpUrlInfo(te.getEntity().getKey()));
-          }
-          mQueue = DownloadTaskQueue.getInstance();
-        } else if (te instanceof UTaskWrapper) {
-          mQueue = UploadTaskQueue.getInstance();
-        } else if (te instanceof DGTaskWrapper) {
-          mQueue = DownloadGroupTaskQueue.getInstance();
-        }
-        createTask(te);
-      }
-    }
+    new Thread(
+        new ResumeThread(isDownloadCmd, String.format("state=%s", IEntity.STATE_WAIT))).start();
   }
 }

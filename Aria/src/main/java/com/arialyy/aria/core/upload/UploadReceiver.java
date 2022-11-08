@@ -16,29 +16,31 @@
 package com.arialyy.aria.core.upload;
 
 import android.text.TextUtils;
-import androidx.annotation.CheckResult;
-import androidx.annotation.NonNull;
 import com.arialyy.annotations.TaskEnum;
+import com.arialyy.aria.core.AriaConfig;
 import com.arialyy.aria.core.AriaManager;
 import com.arialyy.aria.core.command.CancelAllCmd;
+import com.arialyy.aria.core.command.CmdHelper;
 import com.arialyy.aria.core.command.NormalCmdFactory;
 import com.arialyy.aria.core.common.AbsBuilderTarget;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.common.ProxyHelper;
 import com.arialyy.aria.core.event.EventMsgUtil;
-import com.arialyy.aria.core.inf.AbsEntity;
 import com.arialyy.aria.core.inf.AbsReceiver;
-import com.arialyy.aria.core.inf.ITask;
 import com.arialyy.aria.core.inf.ReceiverType;
+import com.arialyy.aria.core.queue.UTaskQueue;
+import com.arialyy.aria.core.scheduler.TaskInternalListenerInterface;
 import com.arialyy.aria.core.scheduler.TaskSchedulers;
-import com.arialyy.aria.core.upload.normal.FtpBuilderTarget;
-import com.arialyy.aria.core.upload.normal.FtpNormalTarget;
-import com.arialyy.aria.core.upload.normal.HttpBuilderTarget;
-import com.arialyy.aria.core.upload.normal.HttpNormalTarget;
-import com.arialyy.aria.core.upload.normal.UNormalTargetFactory;
+import com.arialyy.aria.core.task.ITask;
+import com.arialyy.aria.core.upload.target.FtpBuilderTarget;
+import com.arialyy.aria.core.upload.target.FtpNormalTarget;
+import com.arialyy.aria.core.upload.target.HttpBuilderTarget;
+import com.arialyy.aria.core.upload.target.HttpNormalTarget;
+import com.arialyy.aria.core.upload.target.UTargetFactory;
 import com.arialyy.aria.orm.DbEntity;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CheckUtil;
-import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.util.ComponentUtil;
 import java.util.List;
 import java.util.Set;
 
@@ -47,7 +49,9 @@ import java.util.Set;
  * 上传功能接收器
  */
 public class UploadReceiver extends AbsReceiver {
-  private static final String TAG = "UploadReceiver";
+  public UploadReceiver(Object obj) {
+    super(obj);
+  }
 
   /**
    * 设置最大上传速度，单位：kb
@@ -57,7 +61,7 @@ public class UploadReceiver extends AbsReceiver {
    */
   @Deprecated
   public UploadReceiver setMaxSpeed(int maxSpeed) {
-    AriaManager.getInstance().getUploadConfig().setMaxSpeed(maxSpeed);
+    AriaConfig.getInstance().getUConfig().setMaxSpeed(maxSpeed);
     return this;
   }
 
@@ -66,11 +70,12 @@ public class UploadReceiver extends AbsReceiver {
    *
    * @param filePath 文件路径
    */
-  @CheckResult
-  public HttpBuilderTarget load(@NonNull String filePath) {
-    CheckUtil.checkUploadPath(filePath);
-    return UNormalTargetFactory.getInstance()
-        .generateBuilderTarget(HttpBuilderTarget.class, filePath, targetName);
+
+  public HttpBuilderTarget load(String filePath) {
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_HTTP);
+    CheckUtil.checkUploadPathIsEmpty(filePath);
+    return UTargetFactory.getInstance()
+        .generateBuilderTarget(HttpBuilderTarget.class, filePath);
   }
 
   /**
@@ -79,11 +84,11 @@ public class UploadReceiver extends AbsReceiver {
    * @param taskId 任务id，可从{@link AbsBuilderTarget#create()}、{@link AbsBuilderTarget#add()}、{@link
    * AbsEntity#getId()}读取任务id
    */
-  @CheckResult
+
   public HttpNormalTarget load(long taskId) {
-    CheckUtil.checkTaskId(taskId);
-    return UNormalTargetFactory.getInstance()
-        .generateNormalTarget(HttpNormalTarget.class, taskId, targetName);
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_HTTP);
+    return UTargetFactory.getInstance()
+        .generateNormalTarget(HttpNormalTarget.class, taskId);
   }
 
   /**
@@ -91,11 +96,12 @@ public class UploadReceiver extends AbsReceiver {
    *
    * @param filePath 文件路径
    */
-  @CheckResult
-  public FtpBuilderTarget loadFtp(@NonNull String filePath) {
-    CheckUtil.checkUploadPath(filePath);
-    return UNormalTargetFactory.getInstance()
-        .generateBuilderTarget(FtpBuilderTarget.class, filePath, targetName);
+
+  public FtpBuilderTarget loadFtp(String filePath) {
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_FTP);
+    CheckUtil.checkUploadPathIsEmpty(filePath);
+    return UTargetFactory.getInstance()
+        .generateBuilderTarget(FtpBuilderTarget.class, filePath);
   }
 
   /**
@@ -104,11 +110,11 @@ public class UploadReceiver extends AbsReceiver {
    * @param taskId 任务id，可从{@link AbsBuilderTarget#create()}、{@link AbsBuilderTarget#add()}、{@link
    * AbsEntity#getId()}读取任务id
    */
-  @CheckResult
+
   public FtpNormalTarget loadFtp(long taskId) {
-    CheckUtil.checkTaskId(taskId);
-    return UNormalTargetFactory.getInstance()
-        .generateNormalTarget(FtpNormalTarget.class, taskId, targetName);
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_FTP);
+    return UTargetFactory.getInstance()
+        .generateNormalTarget(FtpNormalTarget.class, taskId);
   }
 
   /**
@@ -229,6 +235,15 @@ public class UploadReceiver extends AbsReceiver {
   }
 
   /**
+   * 获取执行中的任务
+   *
+   * @return 没有执行中的任务，返回null
+   */
+  public List<UploadEntity> getURunningTask() {
+    return UTaskQueue.getInstance().getRunningTask(UploadEntity.class);
+  }
+
+  /**
    * 删除所有任务
    *
    * @param removeFile {@code true} 删除已经上传完成的任务，不仅删除上传记录，还会删除已经上传完成的文件，{@code false}
@@ -237,7 +252,7 @@ public class UploadReceiver extends AbsReceiver {
   public void removeAllTask(boolean removeFile) {
     final AriaManager am = AriaManager.getInstance();
     CancelAllCmd cancelCmd =
-        (CancelAllCmd) CommonUtil.createNormalCmd(new UTaskWrapper(null),
+        (CancelAllCmd) CmdHelper.createNormalCmd(new UTaskWrapper(null),
             NormalCmdFactory.TASK_CANCEL_ALL, ITask.UPLOAD);
     cancelCmd.removeFile = removeFile;
 
@@ -252,15 +267,18 @@ public class UploadReceiver extends AbsReceiver {
    * 将当前类注册到Aria
    */
   public void register() {
-    if (TextUtils.isEmpty(targetName)) {
-      ALog.e(TAG, "upload register target null");
-      return;
-    }
-    Object obj = OBJ_MAP.get(getKey());
     if (obj == null) {
-      ALog.e(TAG, String.format("【%s】观察者为空", targetName));
+      ALog.e(TAG, String.format("【%s】观察者为空", getTargetName()));
       return;
     }
+    if (obj instanceof TaskInternalListenerInterface){
+      ProxyHelper.getInstance().checkProxyType(obj.getClass());
+      if (obj instanceof UploadTaskListener){
+        TaskSchedulers.getInstance().register(obj, TaskEnum.UPLOAD);
+      }
+      return;
+    }
+
     Set<Integer> set = ProxyHelper.getInstance().checkProxyType(obj.getClass());
     if (set != null && !set.isEmpty()) {
       for (Integer type : set) {
@@ -269,7 +287,7 @@ public class UploadReceiver extends AbsReceiver {
         }
       }
     } else {
-      ALog.i(TAG, "没有Aria的注解方法");
+      ALog.e(TAG, "没有Aria的注解方法，详情见：https://aria.laoyuyu.me/aria_doc/other/annotaion_invalid.html");
     }
   }
 
@@ -278,24 +296,19 @@ public class UploadReceiver extends AbsReceiver {
    * 如果是Dialog或popupwindow，需要你在撤销界面时调用该方法
    */
   @Override public void unRegister() {
-    if (needRmListener) {
+    if (isNeedRmListener()) {
       unRegisterListener();
     }
-    AriaManager.getInstance().removeReceiver(OBJ_MAP.get(getKey()));
+    AriaManager.getInstance().removeReceiver(obj);
   }
 
-  @Override public String getType() {
+  @Override public ReceiverType getType() {
     return ReceiverType.UPLOAD;
   }
 
   @Override protected void unRegisterListener() {
-    if (TextUtils.isEmpty(targetName)) {
-      ALog.e(TAG, "upload unRegisterListener target null");
-      return;
-    }
-    Object obj = OBJ_MAP.get(getKey());
     if (obj == null) {
-      ALog.e(TAG, String.format("【%s】观察者为空", targetName));
+      ALog.e(TAG, String.format("【%s】观察者为空", getTargetName()));
       return;
     }
 

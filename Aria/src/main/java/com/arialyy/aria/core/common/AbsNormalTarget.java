@@ -18,12 +18,12 @@ package com.arialyy.aria.core.common;
 import com.arialyy.aria.core.common.controller.INormalFeature;
 import com.arialyy.aria.core.common.controller.NormalController;
 import com.arialyy.aria.core.download.DownloadGroupEntity;
-import com.arialyy.aria.core.inf.AbsNormalEntity;
 import com.arialyy.aria.core.inf.AbsTarget;
 import com.arialyy.aria.core.inf.IEntity;
 import com.arialyy.aria.core.manager.TaskWrapperManager;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.util.DeleteDGRecord;
 import com.arialyy.aria.util.RecordUtil;
 
 /**
@@ -33,18 +33,37 @@ public abstract class AbsNormalTarget<TARGET extends AbsNormalTarget> extends Ab
     implements INormalFeature {
 
   /**
+   * 任务操作前调用
+   */
+  protected void onPre() {
+
+  }
+
+  /**
+   * 是否忽略权限检查
+   */
+  public TARGET ignoreCheckPermissions() {
+    getController().ignoreCheckPermissions();
+    return (TARGET) this;
+  }
+
+  /**
    * 任务是否在执行
    *
    * @return {@code true} 任务正在执行
    */
-  public abstract boolean isRunning();
+  public boolean isRunning() {
+    return false;
+  }
 
   /**
    * 任务是否存在
    *
    * @return {@code true} 任务存在
    */
-  public abstract boolean taskExists();
+  public boolean taskExists() {
+    return false;
+  }
 
   private NormalController mNormalController;
 
@@ -64,11 +83,10 @@ public abstract class AbsNormalTarget<TARGET extends AbsNormalTarget> extends Ab
       cancel();
     } else {
       if (getEntity() instanceof AbsNormalEntity) {
-        RecordUtil.delTaskRecord((AbsNormalEntity) getEntity(), getTaskWrapper().isRemoveFile());
+        RecordUtil.delNormalTaskRecord((AbsNormalEntity) getEntity(), getTaskWrapper().isRemoveFile());
       } else if (getEntity() instanceof DownloadGroupEntity) {
-        RecordUtil.delGroupTaskRecord(((DownloadGroupEntity) getEntity()),
-            getTaskWrapper().isRemoveFile(),
-            true);
+        DeleteDGRecord.getInstance()
+            .deleteRecord(getEntity(), getTaskWrapper().isRemoveFile(), true);
       }
       TaskWrapperManager.getInstance().removeTaskWrapper(getTaskWrapper());
     }
@@ -139,6 +157,7 @@ public abstract class AbsNormalTarget<TARGET extends AbsNormalTarget> extends Ab
    */
   @Override
   public void stop() {
+    onPre();
     getController().stop();
   }
 
@@ -147,7 +166,18 @@ public abstract class AbsNormalTarget<TARGET extends AbsNormalTarget> extends Ab
    */
   @Override
   public void resume() {
-    getController().resume();
+    resume(false);
+  }
+
+  /**
+   * 正常来说，当执行队列满时，调用恢复任务接口，只能将任务放到缓存队列中。
+   * 如果希望调用恢复接口，马上进入执行队列，需要使用该方法
+   *
+   * @param newStart true 立即将任务恢复到执行队列中
+   */
+  @Override public void resume(boolean newStart) {
+    onPre();
+    getController().resume(newStart);
   }
 
   /**
@@ -155,7 +185,7 @@ public abstract class AbsNormalTarget<TARGET extends AbsNormalTarget> extends Ab
    */
   @Override
   public void cancel() {
-    getController().cancel();
+    cancel(false);
   }
 
   /**
@@ -163,17 +193,19 @@ public abstract class AbsNormalTarget<TARGET extends AbsNormalTarget> extends Ab
    */
   @Override
   public void reTry() {
+    onPre();
     getController().reTry();
   }
 
   /**
    * 删除任务
    *
-   * @param removeFile {@code true} 不仅删除任务数据库记录，还会删除已经删除完成的文件
+   * @param removeFile {@code true} 不仅删除任务数据库记录，还会删除已经完成的文件
    * {@code false}如果任务已经完成，只删除任务数据库记录，
    */
   @Override
   public void cancel(boolean removeFile) {
+    onPre();
     getController().cancel(removeFile);
   }
 
@@ -181,12 +213,14 @@ public abstract class AbsNormalTarget<TARGET extends AbsNormalTarget> extends Ab
    * 重新下载
    */
   @Override
-  public void reStart() {
-    getController().reStart();
+  public long reStart() {
+    onPre();
+    return getController().reStart();
   }
 
   @Override
   public void save() {
+    onPre();
     getController().save();
   }
 }

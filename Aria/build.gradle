@@ -7,10 +7,13 @@ android {
   defaultConfig {
     minSdkVersion rootProject.ext.minSdkVersion
     targetSdkVersion rootProject.ext.targetSdkVersion
-    versionCode 329
-    versionName "3.2.9"
+    versionCode rootProject.ext.versionCode
+    versionName rootProject.ext.versionName
   }
   buildTypes {
+    debug{
+      debuggable true
+    }
     release {
       minifyEnabled false
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -20,14 +23,17 @@ android {
     abortOnError false
   }
 }
-
 dependencies {
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   testImplementation 'junit:junit:4.12'
-  implementation 'androidx.appcompat:appcompat:1.0.0'
-  api project(':AriaAnnotations')
-  api 'com.arialyy.aria:aria-ftp-plug:1.0.4'  // 打包时用这个
-
-//    compile project(':AriaFtpPlug')
+//  implementation "androidx.appcompat:appcompat:${rootProject.ext.XAppcompatVersion}"
+  api project(path: ':AriaAnnotations')
+  api project(path: ':PublicComponent')
+  api project(path: ':HttpComponent')
 }
-apply from: 'bintray-release.gradle'
+
+//apply from: 'bintray-release.gradle'
+ext{
+  PUBLISH_ARTIFACT_ID = 'core'
+}
+apply from: '../gradle/mavenCentral-release.gradle'

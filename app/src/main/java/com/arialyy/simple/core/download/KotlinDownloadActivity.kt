@@ -30,9 +30,8 @@ import androidx.lifecycle.ViewModelProviders
 import com.arialyy.annotations.Download
 import com.arialyy.aria.core.Aria
 import com.arialyy.aria.core.download.DownloadEntity
-import com.arialyy.aria.core.download.DownloadTask
 import com.arialyy.aria.core.inf.IEntity
-import com.arialyy.aria.core.scheduler.ISchedulers
+import com.arialyy.aria.core.listener.ISchedulers
 import com.arialyy.aria.util.ALog
 import com.arialyy.aria.util.CommonUtil
 import com.arialyy.frame.util.show.T
@@ -51,7 +50,7 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
   private var mUrl: String? = null
   private var mFilePath: String? = null
   private var mModule: HttpDownloadModule? = null
-  private val mTaskId: Long = -1
+  private var mTaskId: Long = -1
 
   internal var receiver: BroadcastReceiver = object : BroadcastReceiver() {
     override fun onReceive(
@@ -59,10 +58,22 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
       intent: Intent
     ) {
       if (intent.action == ISchedulers.ARIA_TASK_INFO_ACTION) {
-        ALog.d(TAG, "state = " + intent.getIntExtra(ISchedulers.TASK_STATE, -1))
-        ALog.d(TAG, "type = " + intent.getIntExtra(ISchedulers.TASK_TYPE, -1))
-        ALog.d(TAG, "speed = " + intent.getLongExtra(ISchedulers.TASK_SPEED, -1))
-        ALog.d(TAG, "percent = " + intent.getIntExtra(ISchedulers.TASK_PERCENT, -1))
+        ALog.d(
+            TAG,
+            "state = " + intent.getIntExtra(ISchedulers.TASK_STATE, -1)
+        )
+        ALog.d(
+            TAG, "type = " + intent.getIntExtra(ISchedulers.TASK_TYPE, -1)
+        )
+        ALog.d(
+            TAG,
+            "speed = " + intent.getLongExtra(ISchedulers.TASK_SPEED, -1)
+        )
+        ALog.d(
+            TAG, "percent = " + intent.getIntExtra(
+            ISchedulers.TASK_PERCENT, -1
+        )
+        )
         ALog.d(
             TAG, "entity = " + intent.getParcelableExtra<DownloadEntity>(
             ISchedulers.TASK_ENTITY
@@ -93,7 +104,7 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
         .get(HttpDownloadModule::class.java)
     mModule!!.getHttpDownloadInfo(this)
         .observe(this, Observer { entity ->
-          if (entity == null || entity.id < 0) {
+          if (entity == null) {
             return@Observer
           }
           if (entity.state == IEntity.STATE_STOP) {
@@ -167,28 +178,28 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
   }
 
   @Download.onWait
-  fun onWait(task: DownloadTask) {
+  fun onWait(task: com.arialyy.aria.core.task.DownloadTask) {
     if (task.key == mUrl) {
       Log.d(TAG, "wait ==> " + task.downloadEntity.fileName)
     }
   }
 
   @Download.onPre
-  fun onPre(task: DownloadTask) {
+  fun onPre(task: com.arialyy.aria.core.task.DownloadTask) {
     if (task.key == mUrl) {
       binding.stateStr = getString(R.string.stop)
     }
   }
 
   @Download.onTaskStart
-  fun taskStart(task: DownloadTask) {
+  fun taskStart(task: com.arialyy.aria.core.task.DownloadTask) {
     if (task.key == mUrl) {
       binding.fileSize = task.convertFileSize
     }
   }
 
   @Download.onTaskRunning
-  fun running(task: DownloadTask) {
+  fun running(task: com.arialyy.aria.core.task.DownloadTask) {
     if (task.key == mUrl) {
       //Log.d(TAG, task.getKey());
       val len = task.fileSize
@@ -202,14 +213,14 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
   }
 
   @Download.onTaskResume
-  fun taskResume(task: DownloadTask) {
+  fun taskResume(task: com.arialyy.aria.core.task.DownloadTask) {
     if (task.key == mUrl) {
       binding.stateStr = getString(R.string.stop)
     }
   }
 
   @Download.onTaskStop
-  fun taskStop(task: DownloadTask) {
+  fun taskStop(task: com.arialyy.aria.core.task.DownloadTask) {
     if (task.key == mUrl) {
       binding.stateStr = getString(R.string.resume)
       binding.speed = ""
@@ -217,7 +228,7 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
   }
 
   @Download.onTaskCancel
-  fun taskCancel(task: DownloadTask) {
+  fun taskCancel(task: com.arialyy.aria.core.task.DownloadTask) {
     if (task.key == mUrl) {
       binding.progress = 0
       binding.stateStr = getString(R.string.start)
@@ -231,7 +242,7 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
    */
   @Download.onTaskFail
   fun taskFail(
-    task: DownloadTask,
+    task: com.arialyy.aria.core.task.DownloadTask,
     e: Exception
   ) {
     if (task.key == mUrl) {
@@ -242,7 +253,7 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
   }
 
   @Download.onTaskComplete
-  fun taskComplete(task: DownloadTask) {
+  fun taskComplete(task: com.arialyy.aria.core.task.DownloadTask) {
 
     if (task.key == mUrl) {
       binding.progress = 100
@@ -275,15 +286,21 @@ class KotlinDownloadActivity : BaseActivity<ActivitySingleKotlinBinding>() {
   }
 
   private fun startD() {
-    Aria.download(this)
-        .load(mUrl!!)
-        //.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3")
-        //.addHeader("Accept-Encoding", "gzip, deflate")
-        //.addHeader("DNT", "1")
-        //.addHeader("Cookie", "BAIDUID=648E5FF020CC69E8DD6F492D1068AAA9:FG=1; BIDUPSID=648E5FF020CC69E8DD6F492D1068AAA9; PSTM=1519099573; BD_UPN=12314753; locale=zh; BDSVRTM=0")
-        .useServerFileName(true)
-        .setFilePath(mFilePath!!, true)
-        .create()
+    if (mTaskId == -1L) {
+
+      mTaskId = Aria.download(this)
+          .load(mUrl!!)
+          //.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3")
+          //.addHeader("Accept-Encoding", "gzip, deflate")
+          //.addHeader("DNT", "1")
+          //.addHeader("Cookie", "BAIDUID=648E5FF020CC69E8DD6F492D1068AAA9:FG=1; BIDUPSID=648E5FF020CC69E8DD6F492D1068AAA9; PSTM=1519099573; BD_UPN=12314753; locale=zh; BDSVRTM=0")
+          .setFilePath(mFilePath!!, true)
+          .create()
+    } else {
+      Aria.download(this)
+          .load(mTaskId)
+          .resume()
+    }
   }
 
   override fun onStop() {

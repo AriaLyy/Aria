@@ -15,35 +15,39 @@
  */
 package com.arialyy.aria.core.download;
 
-import android.text.TextUtils;
-import androidx.annotation.CheckResult;
-import androidx.annotation.NonNull;
 import com.arialyy.annotations.TaskEnum;
+import com.arialyy.aria.core.AriaConfig;
 import com.arialyy.aria.core.AriaManager;
 import com.arialyy.aria.core.command.CancelAllCmd;
+import com.arialyy.aria.core.command.CmdHelper;
 import com.arialyy.aria.core.command.NormalCmdFactory;
 import com.arialyy.aria.core.common.AbsBuilderTarget;
+import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.common.ProxyHelper;
-import com.arialyy.aria.core.download.group.FtpDirBuilderTarget;
-import com.arialyy.aria.core.download.group.FtpDirNormalTarget;
-import com.arialyy.aria.core.download.group.GroupBuilderTarget;
-import com.arialyy.aria.core.download.group.GroupNormalTarget;
-import com.arialyy.aria.core.download.group.GroupTargetFactory;
-import com.arialyy.aria.core.download.normal.FtpBuilderTarget;
-import com.arialyy.aria.core.download.normal.FtpNormalTarget;
-import com.arialyy.aria.core.download.normal.HttpBuilderTarget;
-import com.arialyy.aria.core.download.normal.HttpNormalTarget;
-import com.arialyy.aria.core.download.normal.DNormalTargetFactory;
+import com.arialyy.aria.core.download.target.DTargetFactory;
+import com.arialyy.aria.core.download.target.FtpBuilderTarget;
+import com.arialyy.aria.core.download.target.FtpDirBuilderTarget;
+import com.arialyy.aria.core.download.target.FtpDirNormalTarget;
+import com.arialyy.aria.core.download.target.FtpNormalTarget;
+import com.arialyy.aria.core.download.target.GroupBuilderTarget;
+import com.arialyy.aria.core.download.target.GroupNormalTarget;
+import com.arialyy.aria.core.download.target.HttpBuilderTarget;
+import com.arialyy.aria.core.download.target.HttpNormalTarget;
 import com.arialyy.aria.core.event.EventMsgUtil;
-import com.arialyy.aria.core.inf.AbsEntity;
 import com.arialyy.aria.core.inf.AbsReceiver;
-import com.arialyy.aria.core.inf.ITask;
 import com.arialyy.aria.core.inf.ReceiverType;
+import com.arialyy.aria.core.queue.DGroupTaskQueue;
+import com.arialyy.aria.core.queue.DTaskQueue;
+import com.arialyy.aria.core.scheduler.M3U8PeerTaskListener;
+import com.arialyy.aria.core.scheduler.SubTaskListener;
+import com.arialyy.aria.core.scheduler.TaskInternalListenerInterface;
 import com.arialyy.aria.core.scheduler.TaskSchedulers;
+import com.arialyy.aria.core.task.ITask;
 import com.arialyy.aria.orm.DbEntity;
 import com.arialyy.aria.util.ALog;
 import com.arialyy.aria.util.CheckUtil;
 import com.arialyy.aria.util.CommonUtil;
+import com.arialyy.aria.util.ComponentUtil;
 import com.arialyy.aria.util.DbDataHelper;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +58,10 @@ import java.util.Set;
  * 下载功能接收器
  */
 public class DownloadReceiver extends AbsReceiver {
-  private final String TAG = "DownloadReceiver";
+
+  public DownloadReceiver(Object obj) {
+    super(obj);
+  }
 
   /**
    * 设置最大下载速度，单位：kb
@@ -64,7 +71,7 @@ public class DownloadReceiver extends AbsReceiver {
    */
   @Deprecated
   public DownloadReceiver setMaxSpeed(int maxSpeed) {
-    AriaManager.getInstance().getDownloadConfig().setMaxSpeed(maxSpeed);
+    AriaConfig.getInstance().getDConfig().setMaxSpeed(maxSpeed);
     return this;
   }
 
@@ -73,11 +80,10 @@ public class DownloadReceiver extends AbsReceiver {
    *
    * @param url 下载地址
    */
-  @CheckResult
-  public HttpBuilderTarget load(@NonNull String url) {
-    CheckUtil.checkUrlInvalidThrow(url);
-    return DNormalTargetFactory.getInstance()
-        .generateBuilderTarget(HttpBuilderTarget.class, url, targetName);
+  public HttpBuilderTarget load(String url) {
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_HTTP);
+    return DTargetFactory.getInstance()
+        .generateBuilderTarget(HttpBuilderTarget.class, url);
   }
 
   /**
@@ -86,11 +92,10 @@ public class DownloadReceiver extends AbsReceiver {
    * @param taskId 任务id，可从{@link AbsBuilderTarget#create()}、{@link AbsBuilderTarget#add()}、{@link
    * AbsEntity#getId()}读取任务id
    */
-  @CheckResult
   public HttpNormalTarget load(long taskId) {
-    CheckUtil.checkTaskId(taskId);
-    return DNormalTargetFactory.getInstance()
-        .generateNormalTarget(HttpNormalTarget.class, taskId, targetName);
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_HTTP);
+    return DTargetFactory.getInstance()
+        .generateNormalTarget(HttpNormalTarget.class, taskId);
   }
 
   /**
@@ -98,33 +103,32 @@ public class DownloadReceiver extends AbsReceiver {
    *
    * @param urls 组合任务只任务列被，如果任务组的中的下载地址改变了，则任务从新的一个任务组
    */
-  @CheckResult
   public GroupBuilderTarget loadGroup(List<String> urls) {
-    CheckUtil.checkDownloadUrls(urls);
-    return GroupTargetFactory.getInstance().generateGroupBuilderTarget(urls, targetName);
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_HTTP);
+    return DTargetFactory.getInstance().generateGroupBuilderTarget(urls);
   }
 
   /**
    * 加载组合任务，用于任务停止、删除等操作
    *
-   * @param taskId 任务id，可从{@link AbsBuilderTarget#create()}、{@link AbsBuilderTarget#add()}、{@link
-   * * AbsEntity#getId()}读取任务id
+   * @param taskId 任务id，可从{@link AbsBuilderTarget#create}、{@link AbsBuilderTarget#add}、{@link
+   * AbsEntity#getId}读取任务id
    */
-  @CheckResult
+
   public GroupNormalTarget loadGroup(long taskId) {
-    CheckUtil.checkTaskId(taskId);
-    return GroupTargetFactory.getInstance()
-        .generateNormalTarget(GroupNormalTarget.class, taskId, targetName);
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_HTTP);
+    return DTargetFactory.getInstance()
+        .generateNormalTarget(GroupNormalTarget.class, taskId);
   }
 
   /**
    * 加载ftp单任务下载地址，用于任务第一次下载，如果需要控制任务停止或删除等操作，请使用{@link #loadFtp(long)}
    */
-  @CheckResult
-  public FtpBuilderTarget loadFtp(@NonNull String url) {
-    CheckUtil.checkUrlInvalidThrow(url);
-    return DNormalTargetFactory.getInstance()
-        .generateBuilderTarget(FtpBuilderTarget.class, url, targetName);
+
+  public FtpBuilderTarget loadFtp(String url) {
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_FTP);
+    return DTargetFactory.getInstance()
+        .generateBuilderTarget(FtpBuilderTarget.class, url);
   }
 
   /**
@@ -133,20 +137,20 @@ public class DownloadReceiver extends AbsReceiver {
    * @param taskId 任务id，可从{@link AbsBuilderTarget#create()}、{@link AbsBuilderTarget#add()}、{@link
    * AbsEntity#getId()}读取任务id
    */
-  @CheckResult
+
   public FtpNormalTarget loadFtp(long taskId) {
-    CheckUtil.checkTaskId(taskId);
-    return DNormalTargetFactory.getInstance()
-        .generateNormalTarget(FtpNormalTarget.class, taskId, targetName);
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_FTP);
+    return DTargetFactory.getInstance()
+        .generateNormalTarget(FtpNormalTarget.class, taskId);
   }
 
   /**
    * 加载ftp文件夹下载地址，用于任务第一次下载，如果需要控制任务停止或删除等操作，请使用{@link #loadFtpDir(long)}
    */
-  @CheckResult
-  public FtpDirBuilderTarget loadFtpDir(@NonNull String dirUrl) {
-    CheckUtil.checkUrlInvalidThrow(dirUrl);
-    return GroupTargetFactory.getInstance().generateDirBuilderTarget(dirUrl, targetName);
+
+  public FtpDirBuilderTarget loadFtpDir(String dirUrl) {
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_FTP);
+    return DTargetFactory.getInstance().generateDirBuilderTarget(dirUrl);
   }
 
   /**
@@ -155,26 +159,38 @@ public class DownloadReceiver extends AbsReceiver {
    * @param taskId 任务id，可从{@link AbsBuilderTarget#create()}、{@link AbsBuilderTarget#add()}、{@link
    * AbsEntity#getId()}读取任务id
    */
-  @CheckResult
+
   public FtpDirNormalTarget loadFtpDir(long taskId) {
-    CheckUtil.checkTaskId(taskId);
-    return GroupTargetFactory.getInstance()
-        .generateNormalTarget(FtpDirNormalTarget.class, taskId, targetName);
+    ComponentUtil.getInstance().checkComponentExist(ComponentUtil.COMPONENT_TYPE_FTP);
+    return DTargetFactory.getInstance()
+        .generateNormalTarget(FtpDirNormalTarget.class, taskId);
   }
 
   /**
    * 将当前类注册到Aria
    */
   public void register() {
-    if (TextUtils.isEmpty(targetName)) {
-      ALog.e(TAG, "download register target null");
-      return;
-    }
-    Object obj = OBJ_MAP.get(getKey());
     if (obj == null) {
-      ALog.e(TAG, String.format("【%s】观察者为空", targetName));
+      ALog.e(TAG, String.format("register【%s】观察者为空", getTargetName()));
       return;
     }
+    if (obj instanceof TaskInternalListenerInterface){
+      ProxyHelper.getInstance().checkProxyType(obj.getClass());
+      if (obj instanceof DownloadTaskListener){
+        TaskSchedulers.getInstance().register(obj, TaskEnum.DOWNLOAD);
+      }
+      if (obj instanceof DownloadGroupTaskListener){
+        TaskSchedulers.getInstance().register(obj, TaskEnum.DOWNLOAD_GROUP);
+      }
+      if (obj instanceof M3U8PeerTaskListener){
+        TaskSchedulers.getInstance().register(obj, TaskEnum.M3U8_PEER);
+      }
+      if (obj instanceof SubTaskListener){
+        TaskSchedulers.getInstance().register(obj, TaskEnum.DOWNLOAD_GROUP_SUB);
+      }
+      return;
+    }
+
     Set<Integer> set = ProxyHelper.getInstance().checkProxyType(obj.getClass());
     if (set != null && !set.isEmpty()) {
       for (Integer type : set) {
@@ -189,7 +205,7 @@ public class DownloadReceiver extends AbsReceiver {
         }
       }
     } else {
-      ALog.w(TAG, "没有Aria的注解方法");
+      ALog.e(TAG, "没有Aria的注解方法，详情见：https://aria.laoyuyu.me/aria_doc/other/annotaion_invalid.html");
     }
   }
 
@@ -205,24 +221,19 @@ public class DownloadReceiver extends AbsReceiver {
    * @see <a href="https://aria.laoyuyu.me/aria_doc/start/any_java.html#%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9">module类中销毁</a>
    */
   @Override public void unRegister() {
-    if (needRmListener) {
+    if (isNeedRmListener()) {
       unRegisterListener();
     }
-    AriaManager.getInstance().removeReceiver(OBJ_MAP.get(getKey()));
+    AriaManager.getInstance().removeReceiver(obj);
   }
 
-  @Override public String getType() {
+  @Override public ReceiverType getType() {
     return ReceiverType.DOWNLOAD;
   }
 
   @Override protected void unRegisterListener() {
-    if (TextUtils.isEmpty(targetName)) {
-      ALog.e(TAG, "download unRegisterListener target null");
-      return;
-    }
-    Object obj = OBJ_MAP.get(getKey());
     if (obj == null) {
-      ALog.e(TAG, String.format("【%s】观察者为空", targetName));
+      ALog.e(TAG, String.format("unRegister【%s】观察者为空", getTargetName()));
       return;
     }
     Set<Integer> set = ProxyHelper.getInstance().mProxyCache.get(obj.getClass().getName());
@@ -230,7 +241,9 @@ public class DownloadReceiver extends AbsReceiver {
       for (Integer integer : set) {
         if (integer == ProxyHelper.PROXY_TYPE_DOWNLOAD) {
           TaskSchedulers.getInstance().unRegister(obj);
-        } else if (integer == ProxyHelper.PROXY_TYPE_DOWNLOAD_GROUP) {
+          continue;
+        }
+        if (integer == ProxyHelper.PROXY_TYPE_DOWNLOAD_GROUP) {
           TaskSchedulers.getInstance().unRegister(obj);
         }
       }
@@ -243,7 +256,10 @@ public class DownloadReceiver extends AbsReceiver {
    * @param taskId 任务实体唯一id
    */
   public DownloadEntity getDownloadEntity(long taskId) {
-    CheckUtil.checkTaskId(taskId);
+    if (taskId < 0) {
+      ALog.e(TAG, "taskId错误");
+      return null;
+    }
     return DbEntity.findFirst(DownloadEntity.class, "rowid=?", String.valueOf(taskId));
   }
 
@@ -254,7 +270,9 @@ public class DownloadReceiver extends AbsReceiver {
    * @return 如果url错误或查找不到数据，则返回null
    */
   public DownloadEntity getFirstDownloadEntity(String downloadUrl) {
-    CheckUtil.checkUrl(downloadUrl);
+    if (!CheckUtil.checkUrl(downloadUrl)) {
+      return null;
+    }
     return DbEntity.findFirst(DownloadEntity.class, "url=? and isGroupChild='false'", downloadUrl);
   }
 
@@ -264,7 +282,9 @@ public class DownloadReceiver extends AbsReceiver {
    * @return 如果url错误或查找不到数据，则返回null
    */
   public List<DownloadEntity> getDownloadEntity(String downloadUrl) {
-    CheckUtil.checkUrl(downloadUrl);
+    if (!CheckUtil.checkUrl(downloadUrl)) {
+      return null;
+    }
     return DbEntity.findDatas(DownloadEntity.class, "url=? and isGroupChild='false'", downloadUrl);
   }
 
@@ -275,7 +295,9 @@ public class DownloadReceiver extends AbsReceiver {
    * @return 如果实体不存在，返回null
    */
   public DownloadGroupEntity getGroupEntity(long taskId) {
-    CheckUtil.checkTaskId(taskId);
+    if (taskId < 0) {
+      ALog.e(TAG, "任务Id错误");
+    }
     return DbDataHelper.getDGEntity(taskId);
   }
 
@@ -286,8 +308,10 @@ public class DownloadReceiver extends AbsReceiver {
    * @return 如果实体不存在，返回null
    */
   public DownloadGroupEntity getGroupEntity(List<String> urls) {
-    CheckUtil.checkDownloadUrls(urls);
-    return DbDataHelper.getDGEntity(CommonUtil.getMd5Code(urls));
+    if (CheckUtil.checkDownloadUrlsIsEmpty(urls)) {
+      return null;
+    }
+    return DbDataHelper.getDGEntityByHash(CommonUtil.getMd5Code(urls));
   }
 
   /**
@@ -297,8 +321,28 @@ public class DownloadReceiver extends AbsReceiver {
    * @return 如果实体不存在，返回null
    */
   public DownloadGroupEntity getFtpDirEntity(String url) {
-    CheckUtil.checkUrl(url);
-    return DbDataHelper.getDGEntity(url);
+    if (!CheckUtil.checkUrl(url)) {
+      return null;
+    }
+    return DbDataHelper.getDGEntityByHash(url);
+  }
+
+  /**
+   * 获取执行中的任务
+   *
+   * @return 没有执行中的任务，返回null
+   */
+  public List<DownloadEntity> getDRunningTask() {
+    return DTaskQueue.getInstance().getRunningTask(DownloadEntity.class);
+  }
+
+  /**
+   * 获取执行中的任务
+   *
+   * @return 没有执行中的任务，返回null
+   */
+  public List<DownloadGroupEntity> getDGRunningTask() {
+    return DGroupTaskQueue.getInstance().getRunningTask(DownloadGroupEntity.class);
   }
 
   /**
@@ -396,15 +440,7 @@ public class DownloadReceiver extends AbsReceiver {
    * @return 如果没有任务组列表，则返回null
    */
   public List<DownloadGroupEntity> getGroupTaskList() {
-    List<DGEntityWrapper> wrappers = DbEntity.findRelationData(DGEntityWrapper.class);
-    if (wrappers == null || wrappers.isEmpty()) {
-      return null;
-    }
-    List<DownloadGroupEntity> entities = new ArrayList<>();
-    for (DGEntityWrapper wrapper : wrappers) {
-      entities.add(wrapper.groupEntity);
-    }
-    return entities;
+    return getGroupTaskList(1, 10);
   }
 
   /**
@@ -471,7 +507,7 @@ public class DownloadReceiver extends AbsReceiver {
   public void removeAllTask(boolean removeFile) {
     final AriaManager ariaManager = AriaManager.getInstance();
     CancelAllCmd cancelCmd =
-        (CancelAllCmd) CommonUtil.createNormalCmd(new DTaskWrapper(null),
+        (CancelAllCmd) CmdHelper.createNormalCmd(new DTaskWrapper(null),
             NormalCmdFactory.TASK_CANCEL_ALL, ITask.DOWNLOAD);
     cancelCmd.removeFile = removeFile;
     EventMsgUtil.getDefault().post(cancelCmd);

@@ -11,4 +11,9 @@ dependencies {
   compile fileTree(dir: 'libs', include: ['*.jar'])
 }
 
-apply from: 'bintray-release.gradle'
+//apply from: 'bintray-release.gradle'
+
+ext{
+  PUBLISH_ARTIFACT_ID = 'annotations'
+}
+apply from: '../gradle/mavenCentral-release.gradle'

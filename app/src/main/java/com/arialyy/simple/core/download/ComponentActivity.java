@@ -71,6 +71,10 @@ public class ComponentActivity extends BaseActivity<ActivityComponentBinding> {
                 DownloadDialog dialog = new DownloadDialog(ComponentActivity.this);
                 dialog.show();
                 break;
+              case 2:
+                new DownloadDialogFragment(ComponentActivity.this).show(getSupportFragmentManager(),
+                    "df");
+                break;
             }
           }
         });

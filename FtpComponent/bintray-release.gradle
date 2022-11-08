@@ -1,0 +1,13 @@
+apply plugin: 'com.novoda.bintray-release'
+publish {
+//  artifactId = 'aria-compiler'
+//  uploadName = 'AriaCompiler'
+  artifactId = 'ftpComponent'
+  uploadName = 'FtpComponent'
+  userOrg = rootProject.ext.userOrg
+  groupId = rootProject.ext.groupId
+  publishVersion = rootProject.ext.publishVersion
+  desc = rootProject.ext.desc
+  website = rootProject.ext.website
+  licences = rootProject.ext.licences
+}
