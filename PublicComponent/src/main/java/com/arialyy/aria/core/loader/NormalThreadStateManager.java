@@ -49,6 +49,8 @@ public class NormalThreadStateManager implements IThreadStateManager {
   private long mProgress; //当前总进度
   private TaskRecord mTaskRecord; // 任务记录
   private Looper mLooper;
+  private boolean mNeedRetry = false;
+  private AriaException mE = null;
 
   /**
    * @param listener 任务事件
@@ -90,10 +92,11 @@ public class NormalThreadStateManager implements IThreadStateManager {
           break;
         case STATE_FAIL:
           mFailNum.getAndIncrement();
+          Bundle bundle = msg.getData();
+          mNeedRetry = bundle.getBoolean(DATA_RETRY, false);
+          mE = (AriaException) bundle.getSerializable(DATA_ERROR_INFO);
           if (isFail()) {
-            Bundle b = msg.getData();
-            mListener.onFail(b.getBoolean(DATA_RETRY, false),
-                (AriaException) b.getSerializable(DATA_ERROR_INFO));
+            mListener.onFail(mNeedRetry, mE);
             quitLooper();
           }
           break;
@@ -115,6 +118,9 @@ public class NormalThreadStateManager implements IThreadStateManager {
               break;
             }
             mListener.onComplete();
+            quitLooper();
+          } else if(isFail()) {
+            mListener.onFail(mNeedRetry, mE);
             quitLooper();
           }
           break;
@@ -170,7 +176,7 @@ public class NormalThreadStateManager implements IThreadStateManager {
     //ALog.d(TAG,
     //    String.format("isStop; stopNum: %s, cancelNum: %s, failNum: %s, completeNum: %s", mStopNum,
     //        mCancelNum, mFailNum, mCompleteNum));
-    return mStopNum.get() == mThreadNum || mStopNum.get() + mCompleteNum.get() == mThreadNum;
+    return mStopNum.get() == mThreadNum || mStopNum.get() + mFailNum.get() + mCompleteNum.get() == mThreadNum;
   }
 
   /**
