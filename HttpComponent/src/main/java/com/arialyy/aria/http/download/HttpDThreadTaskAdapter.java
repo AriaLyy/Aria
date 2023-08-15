@@ -165,6 +165,7 @@ final class HttpDThreadTaskAdapter extends BaseHttpThreadTaskAdapter {
         fos.write(buffer, 0, len);
         progress(len);
       }
+      fos.flush();
       handleComplete();
     } catch (IOException e) {
       fail(new AriaHTTPException(
@@ -218,6 +219,7 @@ final class HttpDThreadTaskAdapter extends BaseHttpThreadTaskAdapter {
           progress(len);
         }
       }
+      fos.flush();
       handleComplete();
     } catch (IOException e) {
       fail(new AriaHTTPException(String.format("文件下载失败，savePath: %s, url: %s", getEntity().getFilePath(),
@@ -257,6 +259,7 @@ final class HttpDThreadTaskAdapter extends BaseHttpThreadTaskAdapter {
       file.write(buffer, 0, len);
       progress(len);
     }
+    file.flush();
   }
 
   /**
