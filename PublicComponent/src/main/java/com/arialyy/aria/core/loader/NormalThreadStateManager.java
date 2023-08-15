@@ -105,7 +105,7 @@ public class NormalThreadStateManager implements IThreadStateManager {
             //  mergerSFtp();
             //  mListener.onComplete();
             //} else
-            if (mTaskRecord.isBlock) {
+            if (mTaskRecord.isBlock || mTaskRecord.threadNum == 1) {
               if (mergeFile()) {
                 mListener.onComplete();
               } else {
