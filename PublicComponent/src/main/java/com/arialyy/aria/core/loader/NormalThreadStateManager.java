@@ -19,6 +19,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 import com.arialyy.aria.core.TaskRecord;
 import com.arialyy.aria.core.inf.IThreadStateManager;
 import com.arialyy.aria.core.listener.IEventListener;
@@ -49,6 +50,8 @@ public class NormalThreadStateManager implements IThreadStateManager {
   private long mProgress; //当前总进度
   private TaskRecord mTaskRecord; // 任务记录
   private Looper mLooper;
+  private boolean mNeedRetry = false;
+  private AriaException mE = null;
 
   /**
    * @param listener 任务事件
@@ -90,10 +93,11 @@ public class NormalThreadStateManager implements IThreadStateManager {
           break;
         case STATE_FAIL:
           mFailNum.getAndIncrement();
+          Bundle bundle = msg.getData();
+          mNeedRetry = bundle.getBoolean(DATA_RETRY, false);
+          mE = (AriaException) bundle.getSerializable(DATA_ERROR_INFO);
           if (isFail()) {
-            Bundle b = msg.getData();
-            mListener.onFail(b.getBoolean(DATA_RETRY, false),
-                (AriaException) b.getSerializable(DATA_ERROR_INFO));
+            mListener.onFail(mNeedRetry, mE);
             quitLooper();
           }
           break;
@@ -109,12 +113,15 @@ public class NormalThreadStateManager implements IThreadStateManager {
               if (mergeFile()) {
                 mListener.onComplete();
               } else {
-                mListener.onFail(false, null);
+                mListener.onFail(false, new AriaException("Merge File Failed"));
               }
               quitLooper();
               break;
             }
             mListener.onComplete();
+            quitLooper();
+          } else if(isFail()) {
+            mListener.onFail(mNeedRetry, mE);
             quitLooper();
           }
           break;
@@ -170,7 +177,7 @@ public class NormalThreadStateManager implements IThreadStateManager {
     //ALog.d(TAG,
     //    String.format("isStop; stopNum: %s, cancelNum: %s, failNum: %s, completeNum: %s", mStopNum,
     //        mCancelNum, mFailNum, mCompleteNum));
-    return mStopNum.get() == mThreadNum || mStopNum.get() + mCompleteNum.get() == mThreadNum;
+    return mStopNum.get() == mThreadNum || mStopNum.get() + mFailNum.get() + mCompleteNum.get() == mThreadNum;
   }
 
   /**
@@ -247,8 +254,12 @@ public class NormalThreadStateManager implements IThreadStateManager {
    * @return {@code true} 合并成功，{@code false}合并失败
    */
   private boolean mergeFile() {
+    Log.d(TAG, "mergeFile: mTaskRecord.threadNum=" + mTaskRecord.threadNum);
     if (mTaskRecord.threadNum == 1) {
       File targetFile = new File(mTaskRecord.filePath);
+      Log.d(TAG, "mergeFile: mTaskRecord.fileLength=" + mTaskRecord.fileLength
+              + ",targetFile.length()=" + targetFile.length() + ",targetFile.exists()=" + targetFile.exists()
+              + ",mTaskRecord.filePath" + mTaskRecord.filePath);
       if (targetFile.exists()){
         //没有获得文件长度：不支持断点续传
         if (mTaskRecord.fileLength == 0 && targetFile.length() != 0) {

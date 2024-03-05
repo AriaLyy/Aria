@@ -20,6 +20,8 @@ import android.os.Looper;
 import com.arialyy.aria.core.common.AbsEntity;
 import com.arialyy.aria.core.common.AbsNormalEntity;
 import com.arialyy.aria.core.common.CompleteInfo;
+import com.arialyy.aria.core.event.DSpeedEvent;
+import com.arialyy.aria.core.event.Event;
 import com.arialyy.aria.core.event.EventMsgUtil;
 import com.arialyy.aria.core.inf.IThreadStateManager;
 import com.arialyy.aria.core.listener.IDLoadListener;
@@ -56,6 +58,9 @@ public class NormalLoader<T extends AbsTaskWrapper> extends AbsNormalLoader<T> {
   @Override public long getFileSize() {
     return getEntity().getFileSize();
   }
+
+  @Event
+  public void maxSpeed(DSpeedEvent event) { setMaxSpeed(event.speed); }
 
   /**
    * 设置最大下载/上传速度AbsFtpInfoThread

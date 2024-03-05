@@ -1,6 +1,7 @@
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
+version rootProject.ext.mavenVersion
 ext {
   PUBLISH_GROUP_ID = rootProject.ext.mavenCentralGroupId
   PUBLISH_VERSION = rootProject.ext.mavenVersion
@@ -55,13 +56,13 @@ static def localMavenRepo() {
 def getReleaseRepositoryUrl() {
   return isLocal() ? localMavenRepo()
       : hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
-      : 'https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/'
+      : 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
 }
 
 def getSnapshotRepositoryUrl() {
   return isLocal() ? localMavenRepo()
       : hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
-      : 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+      : 'https://mirrors.tencent.com/repository/maven/CloudRenderSdk/MicroSdk/snapshots/'
 }
 
 def isLocal(){
@@ -161,7 +162,7 @@ afterEvaluate { project ->
 
           artifact androidLibraryJar
           artifact androidSourcesJar
-          artifact androidJavadocsJar
+//          artifact androidJavadocsJar
 
         } else if (project.plugins.hasPlugin('java')) {
           from components.java

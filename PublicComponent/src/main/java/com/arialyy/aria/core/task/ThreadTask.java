@@ -232,7 +232,7 @@ public class ThreadTask implements IThreadTask, IThreadTaskObserver {
         FileUtil.deleteFile(blockFile);
         ALog.i(TAG, String.format("删除分块【%s】成功", blockFile.getName()));
       }
-      retryBlockTask(isBreak());
+      retryBlockTask(!isBreak());
       return false;
     }
     return true;
@@ -464,6 +464,13 @@ public class ThreadTask implements IThreadTask, IThreadTaskObserver {
       ALog.w(TAG, String.format("分块【%s】第%s次重试", getFileName(), String.valueOf(mFailTimes)));
       mFailTimes++;
       handleBlockRecord();
+      if (!NetUtils.isConnected(AriaConfig.getInstance().getAPP())) {
+        try {
+          Thread.sleep(500);
+        } catch (InterruptedException e) {
+          // fall through
+        }
+      }
       ThreadTaskManager.getInstance().retryThread(this);
       return;
     }
@@ -548,7 +555,7 @@ public class ThreadTask implements IThreadTask, IThreadTaskObserver {
 
   @Override public ThreadTask call() throws Exception {
     isDestroy = false;
-    Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+    Process.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
     TrafficStats.setThreadStatsTag(UUID.randomUUID().toString().hashCode());
     mAdapter.call(this);
     return this;

@@ -56,8 +56,8 @@ ext {
   licences = ['Apache-2.0']
 
   // mavenCentral
-  mavenVersion = '3.8.16'
-  mavenCentralGroupId = 'me.laoyuyu.aria'
+  mavenVersion = '1.0.2'
+  mavenCentralGroupId = 'com.tencent.tcr'
   mavenCentralUserID = 'laoyuyu'
   mavenCentralUserName = 'laoyuyu'
   mavenCentralEmail = '511455842@qq.com'
